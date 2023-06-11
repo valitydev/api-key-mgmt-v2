@@ -1,0 +1,25 @@
+{application, akm, [
+    {description, "Api Key Management"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {mod, {akm, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        public_key,
+        genlib,
+        lechiffre,
+        erl_health,
+        oas_server_akm,
+        scoper,
+        jose,
+        jsx,
+        cowboy_draining_server,
+        cowboy_cors,
+        cowboy_access_log,
+        snowflake,
+        uac,
+        woody_user_identity
+    ]},
+    {env, []}
+]}.

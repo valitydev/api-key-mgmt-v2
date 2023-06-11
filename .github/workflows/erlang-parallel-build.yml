@@ -1,0 +1,308 @@
+name: Erlang Parallel Build
+
+on:
+  workflow_call:
+    inputs:
+      # Beam env
+      otp-version:
+        description: 'Erlang/OTP version to use.'
+        required: true
+        type: string
+      rebar-version:
+        description: 'Rebar version to use.'
+        required: true
+        type: string
+      # Thrift options
+      use-thrift:
+        description: 'Whether or not to install the thrift compiler.'
+        required: false
+        default: false
+        type: boolean
+      thrift-version:
+        description: 'Thrift (valitydev/thrift) version to use.'
+        required: false
+        default: "0.14.2.3"
+        type: string
+      # Codegen options
+      use-swagger-codegen:
+        description: 'Whether or not to install the swagger code generator.'
+        required: false
+        default: false
+        type: boolean
+      swagger-codegen-version:
+        description: 'Codegen (swagger-api/swagger-codegen) version to use.'
+        required: false
+        default: "2.4.25"
+        type: string
+      erlang-generator-version:
+        description: 'Erlang generator (valitydev/swagger-generator-erlang) version to use.'
+        required: false
+        default: "1.0.1"
+        type: string
+      # Test env
+      run-ct-with-compose:
+        description: >
+          'Run tests in a docker-compose environment, requires a docker-compose.yml file
+          (see `valitydev/erlang-templates` for examples).'
+        required: false
+        default: false
+        type: boolean
+      run-ct-compose-container-name:
+        description: 'Service name, as in docker-compose.yml (default: testrunner).'
+        required: false
+        default: "testrunner"
+        type: string
+      # Coverage env
+      use-coveralls:
+        description: 'Use coveralls for code coverage analysis.'
+        required: false
+        default: false
+        type: boolean
+      # Workflow env
+      cache-version:
+        description: 'Cache version. Only change this if you *need* to reset build caches.'
+        required: false
+        default: "v1"
+        type: string
+    secrets:
+      ACTIONS_FETCH_TOKEN:
+        required: true
+      CODECOV_TOKEN:
+        description: >
+          Token to upload coverage reports to codecov.io (required for private repos).
+          See also: https://docs.codecov.com/docs/codecov-uploader#upload-token
+        required: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # yamllint disable-line rule:line-length
+      - run: >
+          git config --global
+          url."https://${{ secrets.ACTIONS_FETCH_TOKEN}}@github.com/".insteadOf
+          ssh://git@github.com/
+
+      - name: Setup BEAM
+        uses: erlef/setup-beam@v1.15
+        with:
+          otp-version: ${{ inputs.otp-version }}
+          rebar3-version: ${{ inputs.rebar-version }}
+
+      - name: Setup Thrift compiler
+        if: ${{ inputs.use-thrift }}
+        uses: valitydev/action-setup-thrift@v1.0.1
+        with:
+          thrift-version: ${{ inputs.thrift-version }}
+
+      - name: Setup Swagger Codegen
+        if: ${{ inputs.use-swagger-codegen }}
+        uses: valitydev/action-setup-swagger-codegen@v0.0.1
+        with:
+          codegen-version: ${{ inputs.swagger-codegen-version }}
+          generator-version: ${{ inputs.erlang-generator-version }}
+
+      - name: Cache _build
+        uses: actions/cache@v3
+        with:
+          path: _build/default/lib
+          # yamllint disable-line rule:line-length
+          key: ${{ inputs.cache-version }}-${{ runner.os }}-otp-${{ inputs.otp-version }}-build-${{ hashFiles('rebar.lock') }}
+          restore-keys: |
+            ${{ inputs.cache-version }}-${{ runner.os }}-otp-${{ inputs.otp-version }}-build-
+      - name: Compile
+        run: rebar3 compile
+
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - run: >
+          git config --global
+          url."https://${{ secrets.ACTIONS_FETCH_TOKEN}}@github.com/".insteadOf
+          ssh://git@github.com/
+
+      - name: Setup BEAM
+        uses: erlef/setup-beam@v1.15
+        with:
+          otp-version: ${{ inputs.otp-version }}
+          rebar3-version: ${{ inputs.rebar-version }}
+
+      - name: Setup Thrift compiler
+        if: ${{ inputs.use-thrift }}
+        uses: valitydev/action-setup-thrift@v1.0.1
+        with:
+          thrift-version: ${{ inputs.thrift-version }}
+
+      - name: Setup Swagger Codegen
+        if: ${{ inputs.use-swagger-codegen }}
+        uses: valitydev/action-setup-swagger-codegen@v0.0.1
+        with:
+          codegen-version: ${{ inputs.swagger-codegen-version }}
+          generator-version: ${{ inputs.erlang-generator-version }}
+
+      - name: Cache _build
+        uses: actions/cache@v3
+        with:
+          path: _build/default/lib
+          # yamllint disable-line rule:line-length
+          key: ${{ inputs.cache-version }}-${{ runner.os }}-otp-${{ inputs.otp-version }}-build-${{ hashFiles('rebar.lock') }}
+          restore-keys: |
+            ${{ inputs.cache-version }}-${{ runner.os }}-otp-${{ inputs.otp-version }}-build-
+      - name: Check formatting
+        run: rebar3 fmt -c
+
+      - name: Run linting
+        run: rebar3 lint
+
+      - name: Run xref
+        run: rebar3 xref
+
+  dialyze:
+    name: Dialyze
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - run: >
+          git config --global
+          url."https://${{ secrets.ACTIONS_FETCH_TOKEN}}@github.com/".insteadOf
+          ssh://git@github.com/
+
+      - name: Setup BEAM
+        uses: erlef/setup-beam@v1.15
+        with:
+          otp-version: ${{ inputs.otp-version }}
+          rebar3-version: ${{ inputs.rebar-version }}
+
+      - name: Setup Thrift compiler
+        if: ${{ inputs.use-thrift }}
+        uses: valitydev/action-setup-thrift@v1.0.1
+        with:
+          thrift-version: ${{ inputs.thrift-version }}
+
+      - name: Setup Swagger Codegen
+        if: ${{ inputs.use-swagger-codegen }}
+        uses: valitydev/action-setup-swagger-codegen@v0.0.1
+        with:
+          codegen-version: ${{ inputs.swagger-codegen-version }}
+          generator-version: ${{ inputs.erlang-generator-version }}
+
+      - name: Cache _build
+        uses: actions/cache@v3
+        with:
+          path: _build/default/lib
+          # yamllint disable-line rule:line-length
+          key: ${{ inputs.cache-version }}-${{ runner.os }}-otp-${{ inputs.otp-version }}-build-${{ hashFiles('rebar.lock') }}
+          restore-keys: |
+            ${{ inputs.cache-version }}-${{ runner.os }}-otp-${{ inputs.otp-version }}-build-
+      - name: Cache PLTs
+        uses: actions/cache@v3
+        with:
+          path: _build/test/rebar3_*_plt
+          # yamllint disable-line rule:line-length
+          key: ${{ inputs.cache-version }}-${{ runner.os }}-otp-${{ inputs.otp-version }}-plt-${{ hashFiles('rebar.lock') }}
+          restore-keys: |
+            ${{ inputs.cache-version }}-${{ runner.os }}-otp-${{ inputs.otp-version }}-plt-
+      - name: Run dialyzer
+        run: rebar3 as test dialyzer
+
+  test:
+    name: Test
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - run: >
+          git config --global
+          url."https://${{ secrets.ACTIONS_FETCH_TOKEN}}@github.com/".insteadOf
+          ssh://git@github.com/
+
+      - name: Setup BEAM
+        uses: erlef/setup-beam@v1.15
+        with:
+          otp-version: ${{ inputs.otp-version }}
+          rebar3-version: ${{ inputs.rebar-version }}
+
+      - name: Setup Thrift compiler
+        if: ${{ inputs.use-thrift }}
+        uses: valitydev/action-setup-thrift@v1.0.1
+        with:
+          thrift-version: ${{ inputs.thrift-version }}
+
+      - name: Setup Swagger Codegen
+        if: ${{ inputs.use-swagger-codegen }}
+        uses: valitydev/action-setup-swagger-codegen@v0.0.1
+        with:
+          codegen-version: ${{ inputs.swagger-codegen-version }}
+          generator-version: ${{ inputs.erlang-generator-version }}
+
+      - name: Cache _build
+        uses: actions/cache@v3
+        with:
+          path: _build/default/lib
+          # yamllint disable-line rule:line-length
+          key: ${{ inputs.cache-version }}-${{ runner.os }}-otp-${{ inputs.otp-version }}-build-${{ hashFiles('rebar.lock') }}
+          restore-keys: |
+            ${{ inputs.cache-version }}-${{ runner.os }}-otp-${{ inputs.otp-version }}-build-
+      - name: Run EUnit
+        run: rebar3 eunit --cover
+
+      - name: Run CommonTest
+        id: run-ct
+        if: ${{ inputs.run-ct-with-compose == false }}
+        run: rebar3 ct --cover
+
+      - name: Run CommonTest (/w docker-compose)
+        id: run-ct-w-compose
+        if: ${{ inputs.run-ct-with-compose == true }}
+        env:
+          # Pass workflow params to use in docker-compose.yml
+          DEV_IMAGE_TAG: ${{ inputs.run-ct-compose-container-name }}-dev
+          OTP_VERSION: ${{ inputs.otp-version }}
+          THRIFT_VERSION: ${{ inputs.thrift-version }}
+          # Enable buildkit extensions in docker compose
+          COMPOSE_DOCKER_CLI_BUILD: true
+          DOCKER_BUILDKIT: true
+        run: |
+          docker-compose run --use-aliases --rm ${{ inputs.run-ct-compose-container-name }} rebar3 ct --cover
+      - name: Store CT Logs
+        if: ${{ failure() && (steps.run-ct.outcome == 'failure' || steps.run-ct-w-compose.outcome == 'failure') }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: ct-logs
+          path: _build/test/logs
+
+      - name: Run test coverage conversion (covertool)
+        run: rebar3 covertool generate
+
+      - name: Run test coverage conversion (lcov)
+        if: ${{ inputs.use-coveralls == true }}
+        run: rebar3 lcov convert
+
+      - name: Upload coverage statistics (codecov)
+        uses: codecov/codecov-action@v2
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          fail_ci_if_error: true
+          files: _build/test/covertool/*.covertool.xml
+
+      - name: Upload coverage statistics (coveralls)
+        if: ${{ inputs.use-coveralls == true }}
+        uses: coverallsapp/github-action@1.1.3
+        with:
+          path-to-lcov: _build/test/lcov/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
