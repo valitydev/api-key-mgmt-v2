@@ -97,7 +97,7 @@ process_request(OperationID, Req, SwagContext0, Opts, WoodyContext0) ->
         WoodyContext = put_user_identity(WoodyContext0, get_auth_context(SwagContext)),
         Context = create_handler_context(OperationID, SwagContext, WoodyContext),
         ok = set_context_meta(Context),
-        {ok, RequestState} = akm_keys_handler:prepare(OperationID, Req, Context, Opts),
+        {ok, RequestState} = akm_apikeys_handler:prepare(OperationID, Req, Context, Opts),
         #{authorize := Authorize, process := Process} = RequestState,
         {ok, Resolution} = Authorize(),
         case Resolution of

@@ -2,6 +2,7 @@
 -- :up
 -- Up migration
 CREATE TABLE apikeys (
+      id            TEXT,
       name          TEXT,
       party_id      TEXT,
       status        TEXT,

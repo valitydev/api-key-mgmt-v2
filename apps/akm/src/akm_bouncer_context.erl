@@ -139,28 +139,13 @@ build(Prototypes, {Acc0, External}) ->
 
 build(operation, Params = #{id := OperationID}, Acc) ->
     Acc#ctx_v1_ContextFragment{
-
-        wapi = #ctx_v1_ContextWalletAPI{
-            op = #ctx_v1_WalletAPIOperation{
+        apikeymgmt = #ctx_v1_ContextApiKeyMgmt{
+            op = #ctx_v1_ApiKeyMgmtOperation{
                 id = operation_id_to_binary(OperationID),
                 party = maybe(party, Params),
-                identity = maybe(identity, Params),
-                wallet = maybe(wallet, Params),
-                withdrawal = maybe(withdrawal, Params),
-                deposit = maybe(deposit, Params),
-                w2w_transfer = maybe(w2w_transfer, Params),
-                source = maybe(source, Params),
-                destination = maybe(destination, Params),
-                report = wapi_handler_utils:maybe_with(report, Params, fun genlib:to_binary/1),
-                file = maybe(file, Params),
-                webhook = maybe(webhook, Params)
-            },
-            grants = wapi_handler_utils:maybe_with(grants, Params, fun build_grants/1)
+                api_key = maybe(api_key, Params)
+            }
         }
-    };
-build(wallet, Params, Acc) when is_list(Params) ->
-    Acc#ctx_v1_ContextFragment{
-        wallet = build_set(lists:map(fun build_entity_ctx/1, Params))
     }.
 
 -spec build_wallet_entity(wallet_entity_type(), map()) -> wallet_entity().

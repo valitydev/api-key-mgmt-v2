@@ -30,6 +30,7 @@ init([]) ->
     SwaggerSpec = akm_swagger_server:child_spec(AdditionalRoutes, LogicHandlers, SwaggerHandlerOpts),
     UacConf = get_uac_config(),
     ok = uac:configure(UacConf),
+    ok = start_epgsql_pooler(),
     {ok, {
         {one_for_all, 0, 1},
         [LechiffreSpec] ++
@@ -55,6 +56,12 @@ get_uac_config() ->
         genlib_app:env(akm, access_conf),
         #{access => akm_tokens_legacy:get_access_config()}
     ).
+
+start_epgsql_pooler() ->
+    Params = genlib_app:env(akm, epsql_connection, #{}),
+    ok = epgsql_pool:validate_connection_params(Params),
+    {ok, _} = epgsql_pool:start(main_pool, 10, 20, Params),
+    ok.
 
 -spec get_prometheus_route() -> {iodata(), module(), _Opts :: any()}.
 get_prometheus_route() ->

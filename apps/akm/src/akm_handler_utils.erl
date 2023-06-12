@@ -20,7 +20,7 @@
 -export([get_location/3]).
 -export([maybe_with/3]).
 
--define(APP, akm__lib).
+-define(APP, akm_lib).
 
 -type status_code() :: akm_apikeys_handler:status_code().
 -type headers() :: akm_apikeys_handler:headers().
@@ -48,9 +48,9 @@
 
 -spec get_owner(handler_context()) -> owner().
 get_owner(Context) ->
-    akm__auth:get_subject_id(get_auth_context(Context)).
+    akm_auth:get_subject_id(get_auth_context(Context)).
 
--spec get_auth_context(akm__handler_utils:handler_context()) -> any().
+-spec get_auth_context(akm_handler_utils:handler_context()) -> any().
 get_auth_context(#{swagger_context := #{auth_context := AuthContext}}) ->
     AuthContext.
 
@@ -94,22 +94,21 @@ reply_error(Code, Data, Headers) ->
 reply(Status, Code, Data, Headers) ->
     {Status, {Code, Headers, Data}}.
 
--spec get_location(akm__utils:route_match(), [binary()], handler_opts()) -> headers().
+-spec get_location(akm_utils:route_match(), [binary()], handler_opts()) -> headers().
 get_location(PathSpec, Params, _Opts) ->
-    %% TODO pass base URL via Opts
     BaseUrl = genlib_app:env(?APP, public_endpoint),
-    #{<<"Location">> => akm__utils:get_url(BaseUrl, PathSpec, Params)}.
+    #{<<"Location">> => akm_utils:get_url(BaseUrl, PathSpec, Params)}.
 
 -spec service_call(
     {
-        akm__woody_client:service_name(),
+        akm_woody_client:service_name(),
         woody:func(),
         woody:args()
     },
     handler_context()
 ) -> woody:result().
 service_call({ServiceName, Function, Args}, #{woody_context := WoodyContext}) ->
-    akm__woody_client:call_service(ServiceName, Function, Args, WoodyContext).
+    akm_woody_client:call_service(ServiceName, Function, Args, WoodyContext).
 
 -spec maybe_with(term(), map(), fun((_Value) -> Result)) -> Result | undefined.
 maybe_with(_Name, undefined, _Then) ->
