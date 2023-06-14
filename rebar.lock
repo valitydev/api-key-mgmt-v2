@@ -144,7 +144,7 @@
        {ref,"3f3e11246d90aefa8f58b35e4f2eab14c0c28bd2"}},
   0},
  {<<"token_keeper_client">>,
-  {git,"https://github.com/valitydev/token-keeper-client.git",
+  {git,"https://github.com/valitydev/token-keeper-client",
        {ref,"de4f666c93a71c8fcab2cfb3b77f2e91225b650c"}},
   0},
  {<<"token_keeper_proto">>,

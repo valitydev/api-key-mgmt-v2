@@ -117,8 +117,6 @@
 
 -export([new/0]).
 -export([build/2]).
--export([build_wallet_entity/2]).
--export([build_wallet_entity/3]).
 
 %%
 
@@ -142,123 +140,9 @@ build(operation, Params = #{id := OperationID}, Acc) ->
         apikeymgmt = #ctx_v1_ContextApiKeyMgmt{
             op = #ctx_v1_ApiKeyMgmtOperation{
                 id = operation_id_to_binary(OperationID),
-                party = maybe(party, Params),
+                party = maybe_entity(party_id, Params),
                 api_key = maybe(api_key, Params)
             }
-        }
-    }.
-
--spec build_wallet_entity(wallet_entity_type(), map()) -> wallet_entity().
-build_wallet_entity(Type, Data) ->
-    build_wallet_entity(Type, Data, {undefined, undefined}).
-
--spec build_wallet_entity(wallet_entity_type(), map() | undefined, {atom() | undefined, entity_id() | undefined}) ->
-    wallet_entity().
-build_wallet_entity(Type, undefined, _) ->
-    {Type, undefined};
-build_wallet_entity(report = Type, Params, {IDKey, ID}) ->
-    EntityID =
-        case maps:get(<<"id">>, Params, undefined) of
-            undefined ->
-                undefined;
-            Result ->
-                genlib:to_binary(Result)
-        end,
-    {Type,
-        maps:merge(
-            genlib_map:compact(#{
-                IDKey => ID,
-                id => EntityID
-            }),
-            build_wallet_entity_(Type, Params)
-        )};
-build_wallet_entity(Type, Params, {IDKey, ID}) ->
-    {Type,
-        maps:merge(
-            genlib_map:compact(#{
-                IDKey => ID,
-                id => maps:get(<<"id">>, Params, undefined)
-            }),
-            build_wallet_entity_(Type, Params)
-        )}.
-
-build_wallet_entity_(deposit, #{<<"wallet">> := WalletID}) ->
-    #{wallet => WalletID};
-build_wallet_entity_(webhook, Webhook = #{<<"identityID">> := Identity}) ->
-    Scope = maybe(<<"scope">>, Webhook),
-    WalletID = maybe(<<"walletID">>, Scope),
-    #{identity => Identity, wallet => WalletID};
-build_wallet_entity_(report, #{<<"files">> := Files}) ->
-    #{files => lists:map(fun(#{<<"id">> := FileID}) -> FileID end, Files)};
-%% identity => IdentityID,
-build_wallet_entity_(_, _) ->
-    #{}.
-
-%%
-
-build_entity_ctx({identity, Data}) ->
-    #base_Entity{
-        id = maybe(id, Data),
-        type = <<"Identity">>,
-        party = maybe(party, Data)
-    };
-build_entity_ctx({wallet, Data}) ->
-    #base_Entity{
-        id = maybe(id, Data),
-        type = <<"Wallet">>,
-        party = maybe(party, Data),
-        wallet = #base_WalletAttrs{
-            body = wapi_handler_utils:maybe_with(cash, Data, fun build_cash/1)
-        }
-    };
-build_entity_ctx({withdrawal, Data}) ->
-    #base_Entity{
-        id = maybe(id, Data),
-        type = <<"Withdrawal">>,
-        party = maybe(party, Data)
-    };
-build_entity_ctx({deposit, Data}) ->
-    #base_Entity{
-        id = maybe(id, Data),
-        type = <<"Deposit">>,
-        wallet = #base_WalletAttrs{
-            wallet = maybe(wallet, Data)
-        }
-    };
-build_entity_ctx({w2w_transfer, Data}) ->
-    #base_Entity{
-        id = maybe(id, Data),
-        type = <<"W2WTransfer">>,
-        party = maybe(party, Data)
-    };
-build_entity_ctx({source, Data}) ->
-    #base_Entity{
-        id = maybe(id, Data),
-        type = <<"Source">>,
-        party = maybe(party, Data)
-    };
-build_entity_ctx({destination, Data}) ->
-    #base_Entity{
-        id = maybe(id, Data),
-        type = <<"Destination">>,
-        party = maybe(party, Data)
-    };
-build_entity_ctx({webhook, Data}) ->
-    #base_Entity{
-        id = maybe(id, Data),
-        type = <<"WalletWebhook">>,
-        wallet = #base_WalletAttrs{
-            identity = maybe(identity, Data),
-            wallet = maybe(wallet, Data)
-        }
-    };
-build_entity_ctx({report, Data}) ->
-    #base_Entity{
-        id = maybe(id, Data),
-        type = <<"WalletReport">>,
-        wallet = #base_WalletAttrs{
-            identity = maybe(identity, Data),
-            report = wapi_handler_utils:maybe_with(files, Data, fun build_report_attrs/1)
         }
     }.
 
@@ -269,31 +153,15 @@ maybe(_Name, undefined) ->
 maybe(Name, Params) ->
     maps:get(Name, Params, undefined).
 
+maybe_entity(_Name, undefined) ->
+    undefined;
+maybe_entity(Name, Params) ->
+    case maps:get(Name, Params, undefined) of
+        undefined ->
+            undefined;
+        Value ->
+            #base_Entity{id = Value}
+    end.
+
 operation_id_to_binary(V) ->
     erlang:atom_to_binary(V, utf8).
-
-build_grants(Grants) when is_list(Grants) ->
-    build_set(lists:map(fun build_grant/1, Grants)).
-
-build_grant(Grant) ->
-    #ctx_v1_WalletGrant{
-        wallet = maybe(wallet, Grant),
-        destination = maybe(destination, Grant),
-        body = wapi_handler_utils:maybe_with(body, Grant, fun build_cash/1),
-        created_at = maybe(created_at, Grant),
-        expires_on = maybe(expires_on, Grant)
-    }.
-
-build_cash(Cash) ->
-    #base_Cash{
-        amount = maybe(amount, Cash),
-        currency = maybe(currency, Cash)
-    }.
-
-build_set(L) when is_list(L) ->
-    ordsets:from_list(L).
-
-build_report_attrs(Attrs) when is_list(Attrs) ->
-    #base_WalletReportAttrs{
-        files = build_set(Attrs)
-    }.

@@ -64,8 +64,8 @@ prepare(OperationID = 'IssueApiKey', #{'partyId' := PartyID, 'ApiKey' := ApiKey}
         {ok, Resolution}
     end,
     Process = fun() ->
-
-        ApiKey = akm_apikeys_processing:issue_api_key(PartyID, ApiKey),
+        #{woody_context := WoodyContext} = Context,
+        ApiKey = akm_apikeys_processing:issue_api_key(PartyID, ApiKey, WoodyContext),
         akm_handler_utils:reply_ok(200, ApiKey)
     end,
     {ok, #{authorize => Authorize, process => Process}}
