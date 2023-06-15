@@ -65,8 +65,15 @@ prepare(OperationID = 'IssueApiKey', #{'partyId' := PartyID, 'ApiKey' := ApiKey}
     end,
     Process = fun() ->
         #{woody_context := WoodyContext} = Context,
-        ApiKey = akm_apikeys_processing:issue_api_key(PartyID, ApiKey, WoodyContext),
-        akm_handler_utils:reply_ok(200, ApiKey)
+        case akm_apikeys_processing:issue_api_key(PartyID, ApiKey, WoodyContext) of
+            {ok, Resp} ->
+                akm_handler_utils:reply_ok(200, Resp);
+            {error, already_exists} ->
+                akm_handler_utils:reply_ok(400, #{
+                    <<"errorType">> => <<"AlreadyExists">>,
+                    <<"description">> => <<"This AccessToken already exists">>
+                })
+        end
     end,
     {ok, #{authorize => Authorize, process => Process}}
 .
