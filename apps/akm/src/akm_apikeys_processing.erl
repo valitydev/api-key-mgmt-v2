@@ -54,7 +54,7 @@ get_authority_id() ->
 marshall_api_key(#{
         id := ID,
         name := Name,
-        created_at => CreatedAt,
+        created_at := CreatedAt,
         status := Status,
         metadata := Metadata
     }) ->

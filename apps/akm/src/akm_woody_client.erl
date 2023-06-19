@@ -68,8 +68,6 @@ get_service_url(ServiceName) ->
     maps:get(ServiceName, genlib_app:env(?APP, service_urls)).
 
 -spec get_service_modname(service_name()) -> woody:service().
-get_service_modname(identdoc_storage) ->
-    {identdocstore_identity_document_storage_thrift, 'IdentityDocumentStorage'};
 get_service_modname(token_storage) ->
     {tds_storage_thrift, 'TokenStorage'}.
 

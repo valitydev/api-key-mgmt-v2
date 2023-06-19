@@ -106,9 +106,7 @@ process_request(OperationID, Req, SwagContext0, Opts, WoodyContext0) ->
                 Process();
             forbidden ->
                 _ = logger:info("Authorization failed"),
-                akm_handler_utils:reply_ok(401);
-            Result ->
-                Result
+                akm_handler_utils:reply_ok(401)
         end
     catch
         throw:{token_auth_failed, Reason} ->

@@ -21,19 +21,14 @@ start_link() ->
 
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
-    LechiffreOpts = genlib_app:env(akm, lechiffre_opts),
-    LechiffreSpec = lechiffre:child_spec(lechiffre, LechiffreOpts),
     {LogicHandlers, LogicHandlerSpecs} = get_logic_handler_info(),
     HealthCheck = enable_health_logging(genlib_app:env(akm, health_check, #{})),
     AdditionalRoutes = [{'_', [erl_health_handle:get_route(HealthCheck), get_prometheus_route()]}],
     SwaggerHandlerOpts = genlib_app:env(akm, swagger_handler_opts, #{}),
     SwaggerSpec = akm_swagger_server:child_spec(AdditionalRoutes, LogicHandlers, SwaggerHandlerOpts),
-    UacConf = get_uac_config(),
-    ok = uac:configure(UacConf),
     ok = start_epgsql_pooler(),
     {ok, {
         {one_for_all, 0, 1},
-        [LechiffreSpec] ++
             LogicHandlerSpecs ++ [SwaggerSpec]
     }}.
 
@@ -50,12 +45,6 @@ get_logic_handler_info() ->
 enable_health_logging(Check) ->
     EvHandler = {erl_health_event_handler, []},
     maps:map(fun(_, V = {_, _, _}) -> #{runner => V, event_handler => EvHandler} end, Check).
-
-get_uac_config() ->
-    maps:merge(
-        genlib_app:env(akm, access_conf),
-        #{access => akm_tokens_legacy:get_access_config()}
-    ).
 
 start_epgsql_pooler() ->
     Params = genlib_app:env(akm, epsql_connection, #{}),

@@ -12,108 +12,21 @@
 -export_type([acc/0]).
 -export_type([fragments/0]).
 
--type operation_id() :: wapi_handler_utils:operation_id().
+-type operation_id() :: akm_handler_utils:operation_id().
 -type prototypes() :: [
     {operation, prototype_operation()}
-    | {wallet, prototype_wallet()}
 ].
 
 -type prototype_operation() :: #{
     id => operation_id(),
-    party => maybe_undefined(entity_id()),
-    identity => maybe_undefined(entity_id()),
-    wallet => maybe_undefined(entity_id()),
-    withdrawal => maybe_undefined(entity_id()),
-    deposit => maybe_undefined(entity_id()),
-    w2w_transfer => maybe_undefined(entity_id()),
-    source => maybe_undefined(entity_id()),
-    destination => maybe_undefined(entity_id()),
-    report => maybe_undefined(entity_id()),
-    file => maybe_undefined(entity_id()),
-    webhook => maybe_undefined(entity_id())
-}.
-
--type prototype_wallet() :: [wallet_entity()].
-
--type wallet_entity() ::
-    {identity, identity_data()}
-    | {wallet, wallet_data()}
-    | {withdrawal, withdrawal_data()}
-    | {deposit, deposit_data()}
-    | {w2w_transfer, w2w_transfer_data()}
-    | {source, source_data()}
-    | {destination, destination_data()}
-    | {webhook, webhook_data()}
-    | {report, report_data()}.
-
--type wallet_entity_type() ::
-    identity
-    | wallet
-    | withdrawal
-    | deposit
-    | w2w_transfer
-    | source
-    | destination
-    | webhook
-    | webhook_filter
-    | report
-    | report_file.
-
--type identity_data() :: #{
-    id => entity_id()
-}.
-
--type wallet_data() :: #{
-    id => entity_id(),
-    party => entity_id(),
-    cash => cash()
-}.
-
--type withdrawal_data() :: #{
-    id => entity_id(),
-    party => entity_id()
-}.
-
--type deposit_data() :: #{
-    id => entity_id(),
-    party => entity_id()
-}.
-
--type w2w_transfer_data() :: #{
-    id => entity_id(),
-    party => entity_id()
-}.
-
--type source_data() :: #{
-    id => entity_id(),
-    party => entity_id()
-}.
-
--type destination_data() :: #{
-    id => entity_id(),
-    party => entity_id()
-}.
-
--type webhook_data() :: #{
-    id => entity_id(),
-    identity => entity_id(),
-    wallet => entity_id()
-}.
-
--type report_data() :: #{
-    id => entity_id(),
-    identity => entity_id(),
-    files => [entity_id()]
+    party => maybe_undefined(entity_id())
 }.
 
 -type entity_id() :: binary().
 -type maybe_undefined(Type) :: Type | undefined.
--type cash() :: #{amount := binary(), currency := binary()}.
 
 -export_type([prototypes/0]).
 -export_type([prototype_operation/0]).
--export_type([prototype_wallet/0]).
--export_type([wallet_entity_type/0]).
 
 -export([new/0]).
 -export([build/2]).
@@ -127,7 +40,7 @@ new() ->
 mk_base_fragment() ->
     bouncer_context_helpers:make_env_fragment(#{
         now => genlib_rfc3339:format(genlib_time:unow(), second),
-        deployment => #{id => genlib_app:env(wapi_lib, deployment, undefined)}
+        deployment => #{id => genlib_app:env(akm, deployment, undefined)}
     }).
 
 -spec build(prototypes(), fragments()) -> fragments().

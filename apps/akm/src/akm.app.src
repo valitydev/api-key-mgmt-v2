@@ -8,7 +8,6 @@
         stdlib,
         public_key,
         genlib,
-        lechiffre,
         erl_health,
         oas_server_akm,
         scoper,
@@ -18,7 +17,6 @@
         cowboy_cors,
         cowboy_access_log,
         snowflake,
-        uac,
         woody_user_identity
     ]},
     {env, []}

@@ -15,10 +15,6 @@
 
 -export([to_universal_time/1]).
 
--export([redact/2]).
--export([mask_and_keep/4]).
--export([mask/4]).
-
 -export([unwrap/1]).
 -export([define/2]).
 
@@ -106,55 +102,6 @@ map_to_base64url(Map) when is_map(Map) ->
             _ = logger:debug("encoding map ~p to base64 failed with ~p:~p", [Map, Class, Reason]),
             erlang:error(badarg)
     end.
-
--spec redact(Subject :: binary(), Pattern :: binary()) -> Redacted :: binary().
-redact(Subject, Pattern) ->
-    case re:run(Subject, Pattern, [global, {capture, all_but_first, index}]) of
-        {match, Captures} ->
-            lists:foldl(fun redact_match/2, Subject, Captures);
-        nomatch ->
-            Subject
-    end.
-
-redact_match({S, Len}, Subject) ->
-    <<Pre:S/binary, _:Len/binary, Rest/binary>> = Subject,
-    <<Pre/binary, (binary:copy(<<"*">>, Len))/binary, Rest/binary>>;
-redact_match([Capture], Message) ->
-    redact_match(Capture, Message).
-
-%% TODO Switch to this sexy code after the upgrade to Erlang 20+
-%%
-%% -spec mask(leading|trailing, non_neg_integer(), char(), binary()) ->
-%%     binary().
-%% mask(Dir = trailing, MaskLen, MaskChar, Str) ->
-%%     mask(Dir, 0, string:length(Str) - MaskLen, MaskChar, Str);
-%% mask(Dir = leading, MaskLen, MaskChar, Str) ->
-%%     mask(Dir, MaskLen, string:length(Str), MaskChar, Str).
-
-%% mask(Dir, KeepStart, KeepLen, MaskChar, Str) ->
-%%     unicode:characters_to_binary(
-%%         string:pad(string:slice(Str, KeepStart, KeepLen), string:length(Str), Dir, MaskChar)
-%%     ).
-
--spec mask_and_keep(leading | trailing, non_neg_integer(), char(), binary()) -> binary().
-mask_and_keep(trailing, KeepLen, MaskChar, Chardata) ->
-    StrLen = erlang:length(unicode:characters_to_list(Chardata)),
-    mask(leading, StrLen - KeepLen, MaskChar, Chardata);
-mask_and_keep(leading, KeepLen, MaskChar, Chardata) ->
-    StrLen = erlang:length(unicode:characters_to_list(Chardata)),
-    mask(trailing, StrLen - KeepLen, MaskChar, Chardata).
-
--spec mask(leading | trailing, non_neg_integer(), char(), binary()) -> binary().
-mask(trailing, MaskLen, MaskChar, Chardata) ->
-    Str = unicode:characters_to_list(Chardata),
-    unicode:characters_to_binary(
-        string:left(string:substr(Str, 1, erlang:length(Str) - MaskLen), erlang:length(Str), MaskChar)
-    );
-mask(leading, MaskLen, MaskChar, Chardata) ->
-    Str = unicode:characters_to_list(Chardata),
-    unicode:characters_to_binary(
-        string:right(string:substr(Str, MaskLen + 1), erlang:length(Str), MaskChar)
-    ).
 
 -spec to_universal_time(Timestamp :: binary()) -> TimestampUTC :: binary().
 to_universal_time(Timestamp) ->
@@ -316,12 +263,6 @@ to_universal_time_test() ->
     ?assertEqual(<<"2017-04-19T10:36:07.530Z">>, to_universal_time(<<"2017-04-19T13:56:07.53+03:20">>)),
     ?assertEqual(<<"2017-04-19T17:16:07.530Z">>, to_universal_time(<<"2017-04-19T13:56:07.53-03:20">>)).
 
--spec redact_test() -> _.
-redact_test() ->
-    P1 = <<"^\\+\\d(\\d{1,10}?)\\d{2,4}$">>,
-    ?assertEqual(<<"+7******3210">>, redact(<<"+79876543210">>, P1)),
-    ?assertEqual(<<"+1*11">>, redact(<<"+1111">>, P1)).
-
 -spec get_path_test() -> _.
 get_path_test() ->
     ?assertEqual(
@@ -345,28 +286,6 @@ get_path_test() ->
             [<<"11">>, <<"42">>, <<"0">>]
         )
     ).
-
--spec mask_test() -> _.
-mask_test() ->
-    ?assertEqual(<<"Жур">>, mask(leading, 0, $*, <<"Жур">>)),
-    ?assertEqual(<<"*ур">>, mask(leading, 1, $*, <<"Жур">>)),
-    ?assertEqual(<<"**р">>, mask(leading, 2, $*, <<"Жур">>)),
-    ?assertEqual(<<"***">>, mask(leading, 3, $*, <<"Жур">>)),
-    ?assertEqual(<<"Жур">>, mask(trailing, 0, $*, <<"Жур">>)),
-    ?assertEqual(<<"Жу*">>, mask(trailing, 1, $*, <<"Жур">>)),
-    ?assertEqual(<<"Ж**">>, mask(trailing, 2, $*, <<"Жур">>)),
-    ?assertEqual(<<"***">>, mask(trailing, 3, $*, <<"Жур">>)).
-
--spec mask_and_keep_test() -> _.
-mask_and_keep_test() ->
-    ?assertEqual(<<"***">>, mask_and_keep(leading, 0, $*, <<"Жур">>)),
-    ?assertEqual(<<"Ж**">>, mask_and_keep(leading, 1, $*, <<"Жур">>)),
-    ?assertEqual(<<"Жу*">>, mask_and_keep(leading, 2, $*, <<"Жур">>)),
-    ?assertEqual(<<"Жур">>, mask_and_keep(leading, 3, $*, <<"Жур">>)),
-    ?assertEqual(<<"***">>, mask_and_keep(trailing, 0, $*, <<"Жур">>)),
-    ?assertEqual(<<"**р">>, mask_and_keep(trailing, 1, $*, <<"Жур">>)),
-    ?assertEqual(<<"*ур">>, mask_and_keep(trailing, 2, $*, <<"Жур">>)),
-    ?assertEqual(<<"Жур">>, mask_and_keep(trailing, 3, $*, <<"Жур">>)).
 
 -spec parse_deadline_test() -> _.
 parse_deadline_test() ->
