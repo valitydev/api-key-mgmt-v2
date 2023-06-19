@@ -45,7 +45,7 @@ issue_api_key(PartyID, ApiKey, WoodyContext) ->
 get_api_key(ApiKeyId) ->
     Result = epgsql_pool:query(
         main_pool,
-        "SELECT id, name, party_id, status, metadata FROM apikeys where id = $1",
+        "SELECT id, name, status, metadata, create_at FROM apikeys where id = $1",
         [ApiKeyId]
     ),
     case Result of
@@ -63,10 +63,16 @@ get_authority_id() ->
 
 to_maps(Columns, Rows) ->
     ColNumbers = erlang:length(Columns),
+    ColumnsWithConvertedNames = lists:map(
+        fun(#column{name = Name} = Col) ->
+            Col#column{name = snake_to_camel(Name)}
+        end,
+        Columns
+    ),
     Seq = lists:seq(1, ColNumbers),
     lists:map(fun(Row) ->
         lists:foldl(fun(Pos, Acc) ->
-            #column{name = Field, type = Type} = lists:nth(Pos, Columns),
+            #column{name = Field, type = Type} = lists:nth(Pos, ColumnsWithConvertedNames),
             add_field(Field, convert(Type, erlang:element(Pos, Row)), Acc)
         end, #{}, Seq)
     end, Rows).
@@ -84,3 +90,9 @@ datetime_to_binary({Date, {Hour, Minute, Second}}) when is_float(Second) ->
 datetime_to_binary(DateTime) ->
     UnixTime = genlib_time:daytime_to_unixtime(DateTime),
     genlib_rfc3339:format(UnixTime, second).
+
+%% create_at -> createAt
+snake_to_camel(Data) ->
+    [H | Chunks] = binary:split(Data, <<"_">>, [global]),
+    ConvertedTail = lists:map(fun string:titlecase/1, Chunks),
+    lists:foldl(fun(Bin, Acc) -> <<Acc/binary, Bin/binary>> end, H, ConvertedTail).
