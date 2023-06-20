@@ -1,8 +1,10 @@
 -module(akm_apikeys_processing).
 
 -include_lib("bouncer_proto/include/bouncer_ctx_v1_thrift.hrl").
+-include_lib("epgsql/include/epgsql.hrl").
 
 -export([issue_api_key/3]).
+-export([get_api_key/1]).
 
 -spec issue_api_key(_, _, _) -> _.
 issue_api_key(PartyID, ApiKey, WoodyContext) ->
@@ -46,6 +48,21 @@ issue_api_key(PartyID, ApiKey, WoodyContext) ->
             {error, already_exists}
     end.
 
+-spec get_api_key(binary()) -> {ok, map()} | {error, not_found}.
+get_api_key(ApiKeyId) ->
+    Result = epgsql_pool:query(
+        main_pool,
+        "SELECT id, name, status, metadata, create_at FROM apikeys where id = $1",
+        [ApiKeyId]
+    ),
+    case Result of
+        {ok, _Columns, []} ->
+            {error, not_found};
+        {ok, Columns, Rows} ->
+            [ApiKey | _ ] = to_maps(Columns, Rows),
+            {ok, ApiKey}
+    end.
+
 get_authority_id() ->
     application:get_env(akm, authority_id).
 
@@ -70,3 +87,39 @@ marshall_access_token(Token) ->
     #{
         <<"accessToken">> => Token
     }.
+
+to_maps(Columns, Rows) ->
+    ColNumbers = erlang:length(Columns),
+    ColumnsWithConvertedNames = lists:map(
+        fun(#column{name = Name} = Col) ->
+            Col#column{name = snake_to_camel(Name)}
+        end,
+        Columns
+    ),
+    Seq = lists:seq(1, ColNumbers),
+    lists:map(fun(Row) ->
+        lists:foldl(fun(Pos, Acc) ->
+            #column{name = Field, type = Type} = lists:nth(Pos, ColumnsWithConvertedNames),
+            add_field(Field, convert(Type, erlang:element(Pos, Row)), Acc)
+                    end, #{}, Seq)
+              end, Rows).
+
+add_field(_FieldName, null, Acc) -> Acc;
+add_field(FieldName, Value, Acc) -> Acc#{FieldName => Value}.
+
+%% for reference https://github.com/epgsql/epgsql#data-representation
+convert(timestamp, Value) ->
+    datetime_to_binary(Value);
+convert(_Type, Value) -> Value.
+
+datetime_to_binary({Date, {Hour, Minute, Second}}) when is_float(Second) ->
+    datetime_to_binary({Date, {Hour, Minute, trunc(Second)}});
+datetime_to_binary(DateTime) ->
+    UnixTime = genlib_time:daytime_to_unixtime(DateTime),
+    genlib_rfc3339:format(UnixTime, second).
+
+%% create_at -> createAt
+snake_to_camel(Data) ->
+    [H | Chunks] = binary:split(Data, <<"_">>, [global]),
+    ConvertedTail = lists:map(fun string:titlecase/1, Chunks),
+    lists:foldl(fun(Bin, Acc) -> <<Acc/binary, Bin/binary>> end, H, ConvertedTail).
