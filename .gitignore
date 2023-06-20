@@ -1,17 +1,18 @@
-.eunit
-*.o
-*.beam
-*.plt
+# general
+log
+/_build/
+/_checkouts/
+*~
 erl_crash.dump
-.concrete/DEV_MODE
+rebar3.crashdump
+.tags*
+*.sublime-workspace
+.edts
+.DS_Store
+/.idea/
+*.beam
+/test/log/
 
-# rebar 2.x
-.rebar
-rel/example_project
-ebin/*.beam
-deps
-
-# rebar 3
-.rebar3
-_build/
-_checkouts/
+tags
+.image.dev
+bin

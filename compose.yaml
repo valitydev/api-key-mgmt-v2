@@ -1,0 +1,55 @@
+services:
+
+  testrunner:
+    image: $DEV_IMAGE_TAG
+    build:
+      dockerfile: Dockerfile.dev
+      context: .
+      args:
+        OTP_VERSION: $OTP_VERSION
+        THRIFT_VERSION: $THRIFT_VERSION
+    volumes:
+      - .:$PWD
+    hostname: akm
+    depends_on:
+      db:
+        condition: service_healthy
+    working_dir: $PWD
+
+  db:
+    image: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: apikeymgmtv2
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  token-keeper:
+    image: ghcr.io/valitydev/token-keeper:sha-42d4a27
+    command: /opt/token-keeper/bin/token-keeper foreground
+    depends_on:
+      machinegun:
+        condition: service_healthy
+    healthcheck:
+      test: "/opt/token-keeper/bin/token-keeper ping"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  machinegun:
+    image: ghcr.io/valitydev/machinegun:sha-058bada
+    command: /opt/machinegun/bin/machinegun foreground
+    volumes:
+      - ./test/machinegun/config.yaml:/opt/machinegun/etc/config.yaml
+      - ./test/machinegun/cookie:/opt/machinegun/etc/cookie
+    healthcheck:
+      test: "/opt/machinegun/bin/machinegun ping"
+      interval: 5s
+      timeout: 1s
+      retries: 20
