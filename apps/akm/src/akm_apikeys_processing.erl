@@ -52,7 +52,7 @@ issue_api_key(PartyID, ApiKey, WoodyContext) ->
 get_api_key(ApiKeyId) ->
     Result = epgsql_pool:query(
         main_pool,
-        "SELECT id, name, status, metadata, create_at FROM apikeys where id = $1",
+        "SELECT id, name, status, metadata, created_at FROM apikeys where id = $1",
         [ApiKeyId]
     ),
     case Result of
