@@ -36,7 +36,7 @@ init([]) ->
 get_logic_handler_info() ->
     {
         #{
-            keys => {akm_handler, #{}}
+            akm_handler => {akm_handler, #{}}
         },
         []
     }.

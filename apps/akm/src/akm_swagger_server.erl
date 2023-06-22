@@ -43,7 +43,7 @@ get_cowboy_config(AdditionalRoutes, LogicHandlers, SwaggerHandlerOpts) ->
             squash_routes(
                 AdditionalRoutes ++
                     swag_server_apikeys_router:get_paths(
-                        maps:get(wallet, LogicHandlers),
+                        maps:get(akm_handler, LogicHandlers),
                         SwaggerHandlerOpts
                     )
             )

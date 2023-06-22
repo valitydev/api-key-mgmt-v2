@@ -120,7 +120,7 @@ process_request(OperationID, Req, SwagContext0, Opts, WoodyContext0) ->
 create_woody_context(#{'X-Request-ID' := RequestID}) ->
     RpcID = #{trace_id := TraceID} = woody_context:new_rpc_id(genlib:to_binary(RequestID)),
     ok = scoper:add_meta(#{request_id => RequestID, trace_id => TraceID}),
-    woody_context:new(RpcID, undefined, akm_woody_client:get_service_deadline(wallet)).
+    woody_context:new(RpcID, undefined, akm_woody_client:get_service_deadline(akm)).
 
 put_user_identity(WoodyContext, AuthContext) ->
     woody_user_identity:put(collect_user_identity(AuthContext), WoodyContext).
