@@ -73,9 +73,6 @@ make_psql_migration:
 	mkdir -p migrations
 	cp ./psql-migration/_build/default/bin/psql_migration ./bin
 
-make_run_migration:
-	./bin/psql_migration -e .env run
-
 # Rebar tasks
 
 rebar-shell:
@@ -117,7 +114,7 @@ clean:
 distclean: clean-build-image
 	rm -rf _build
 
-test: make_run_migration eunit common-test
+test: eunit common-test
 
 cover-report:
 	$(REBAR) cover

@@ -30,7 +30,7 @@ init(_Id, State) ->
             fun prepare_config/1,
             fun set_environment/1,
             fun mock_services/1,
-            %fun init_db/1,
+            fun init_db/1,
             fun start_akm/1,
             fun start_gun/1
         ],
@@ -121,6 +121,14 @@ mock_services(State) ->
         fun(_, _) -> #{} end
     ),
     State.
+
+init_db(Config) ->
+    WorkDir = get_env_var("WORK_DIR"),
+    Cmd = WorkDir ++ "/bin/psql_migration -e " ++ WorkDir ++ "/.env -d " ++ WorkDir ++ "/migrations run",
+    io:format(user, "Starting migrations with command: ~p~n", [Cmd]),
+    Res = os:cmd(Cmd),
+    io:format(user, "Migration completed with result: ~p~n", [Res]),
+    Config.
 
 start_akm(State) ->
     {ok, _} = application:ensure_all_started(akm),

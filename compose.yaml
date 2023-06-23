@@ -3,6 +3,7 @@ services:
   testrunner:
     image: $DEV_IMAGE_TAG
     environment:
+      WORK_DIR: $PWD
       POSTGRES_HOST: db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
