@@ -30,10 +30,7 @@ get-submodules:
 	git submodule init
 	git submodule update
 
-.image.dev: Dockerfile.dev .env
-	git submodule init
-	git submodule update
-	make -C psql-migration/
+.image.dev: get-submodules make_psql_migration Dockerfile.dev .env
 	env $(DOTENV) $(DOCKERCOMPOSE_W_ENV) build $(TEST_CONTAINER_NAME)
 	$(DOCKER) image ls -q -f "reference=$(DEV_IMAGE_ID)" | head -n1 > $@
 
