@@ -74,7 +74,7 @@ make_psql_migration:
 	cp ./psql-migration/_build/default/bin/psql_migration ./bin
 
 make_run_migration: make_psql_migration
-    ./bin/psql_migration -e .env run
+	./bin/psql_migration -e .env run
 
 # Rebar tasks
 
