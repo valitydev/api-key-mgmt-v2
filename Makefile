@@ -59,7 +59,7 @@ wdeps-shell: dev-image
 	$(DOCKERCOMPOSE_RUN) $(TEST_CONTAINER_NAME) su; \
 	$(DOCKERCOMPOSE_W_ENV) down
 
-wdeps-%: dev-image
+wdeps-%: dev-image make_psql_migration
 	$(DOCKERCOMPOSE_RUN) -T $(TEST_CONTAINER_NAME) make $(if $(MAKE_ARGS),$(MAKE_ARGS) $*,$*); \
 	res=$$?; \
 	$(DOCKERCOMPOSE_W_ENV) down; \
@@ -73,7 +73,7 @@ make_psql_migration:
 	mkdir -p migrations
 	cp ./psql-migration/_build/default/bin/psql_migration ./bin
 
-make_run_migration: make_psql_migration
+make_run_migration:
 	./bin/psql_migration -e .env run
 
 # Rebar tasks
@@ -102,7 +102,7 @@ release:
 eunit:
 	$(REBAR) eunit --cover
 
-common-test: make_run_migration
+common-test:
 	$(REBAR) ct --cover
 
 cover:
