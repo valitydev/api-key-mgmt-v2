@@ -139,18 +139,18 @@ get_free_port() ->
 
 get_pg_config() ->
     #{
-        host => get_env_var("POSTGRES_HOST", "localhost"),
+        host => get_env_var("POSTGRES_HOST"),
         port => list_to_integer(get_env_var("POSTGRES_PORT", "5432")),
         username => get_env_var("POSTGRES_USER", "postgres"),
         password => get_env_var("POSTGRES_PASSWORD", "postgres"),
         database => get_env_var("POSTGRES_DB", "apikeymgmtv2")
     }.
 
-%get_env_var(Name) ->
-%    case os:getenv(Name) of
-%        false -> throw({os_env_required, Name});
-%        V -> V
-%    end.
+get_env_var(Name) ->
+    case os:getenv(Name) of
+        false -> throw({os_env_required, Name});
+        V -> V
+    end.
 
 get_env_var(Name, Default) ->
     os:getenv(Name, Default).

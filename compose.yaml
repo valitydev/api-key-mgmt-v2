@@ -2,6 +2,11 @@ services:
 
   testrunner:
     image: $DEV_IMAGE_TAG
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: apikeymgmtv2
     build:
       dockerfile: Dockerfile.dev
       context: .
