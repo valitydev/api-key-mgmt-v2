@@ -125,7 +125,12 @@ mock_services(State) ->
 init_db(Config) ->
     WorkDir = get_env_var("WORK_DIR"),
     Cmd = WorkDir ++ "/bin/psql_migration -e " ++ WorkDir ++ "/.env -d " ++ WorkDir ++ "/migrations run",
-    io:format(user, "Starting migrations with command: ~p~nCurrent dir: ~p~n", [Cmd, os:cmd("pwd")]),
+    io:format(user, "Starting migrations with command: ~p~n", [Cmd]),
+    io:format(user, "DIRS: ~p~n", [[
+        os:cmd("ls " ++ WorkDir),
+        os:cmd("ls " ++ WorkDir ++ "/_build"),
+        os:cmd("ls " ++ WorkDir ++ "/_build/default")
+    ]]),
     Res = os:cmd(Cmd),
     io:format(user, "Migration completed with result: ~p~n", [Res]),
     Config.
