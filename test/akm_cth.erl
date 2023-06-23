@@ -63,7 +63,6 @@ set_environment(State) ->
 
 prepare_config(State) ->
     AkmAddress = "::",
-    {ok, AkmHost} = inet:parse_address(AkmAddress),
     AkmPort = get_free_port(),
     PgConfig = get_pg_config(),
     SysConfig = [
@@ -89,7 +88,7 @@ prepare_config(State) ->
     ],
     [
         {sys_config, SysConfig},
-        {akm_host, AkmHost},
+        {akm_host, "localhost"},
         {akm_port, AkmPort}
         | State
     ].
