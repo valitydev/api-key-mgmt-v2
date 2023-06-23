@@ -30,7 +30,7 @@ get-submodules:
 	git submodule init
 	git submodule update
 
-.image.dev: get-submodules Dockerfile.dev .env
+.image.dev: get-submodules make_psql_migration Dockerfile.dev .env
 	env $(DOTENV) $(DOCKERCOMPOSE_W_ENV) build $(TEST_CONTAINER_NAME)
 	$(DOCKER) image ls -q -f "reference=$(DEV_IMAGE_ID)" | head -n1 > $@
 
@@ -59,7 +59,7 @@ wdeps-shell: dev-image
 	$(DOCKERCOMPOSE_RUN) $(TEST_CONTAINER_NAME) su; \
 	$(DOCKERCOMPOSE_W_ENV) down
 
-wdeps-%: dev-image make_psql_migration
+wdeps-%: dev-image
 	$(DOCKERCOMPOSE_RUN) -T $(TEST_CONTAINER_NAME) make $(if $(MAKE_ARGS),$(MAKE_ARGS) $*,$*); \
 	res=$$?; \
 	$(DOCKERCOMPOSE_W_ENV) down; \
