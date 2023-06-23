@@ -100,7 +100,7 @@ eunit:
 	$(REBAR) eunit --cover
 
 common-test: make_psql_migration
-    ./bin/psql_migration -e .env run
+    	./bin/psql_migration -e .env run
 	$(REBAR) ct --cover
 
 cover:
