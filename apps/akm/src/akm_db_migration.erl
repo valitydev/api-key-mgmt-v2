@@ -8,7 +8,6 @@
 %%====================================================================
 
 -define(OPTS, [
-    {help, $h, "help", undefined, "Print this help text"},
     {dir, $d, "dir", {string, "migrations"}, "Migration folder"},
     {env, $e, "env", {string, ".env"}, "Environment file to search for DATABASE_URL"}
 ]).
@@ -17,41 +16,9 @@
 process(Args) ->
     handle_command(getopt:parse(?OPTS, Args)).
 
-usage() ->
-    getopt:usage(
-        ?OPTS,
-        "psql_migration",
-        "<command>",
-        [
-            {"new <name>", "Create a new migration"},
-            {"list", "List migrations indicating which have been applied"},
-            {"run", "Run all migrations"},
-            {"revert", "Revert the last migration"},
-            {"reset",
-                "Resets your database by dropping the database in your DATABASE_URL and then runs `setup`"},
-            {"setup",
-                "Creates the database specified in your DATABASE_URL, and runs any existing migrations."}
-        ]
-    ).
-
 handle_command({error, Error}) ->
-    io:format("~p~n~n", [Error]),
-    usage(),
+    logger:error("~p", [Error]),
     {error, Error};
-handle_command({ok, {[help | _], _}}) ->
-    usage(),
-    ok;
-handle_command({ok, {Args, ["list"]}}) ->
-    Applied = applied_migrations(Args),
-    Available = available_migrations(Args),
-    IsApplied = fun(Mig) ->
-        case lists:member(Mig, Applied) of
-            true -> "X";
-            _ -> " "
-        end
-                end,
-    io:format("Migrations:~n"),
-    [io:format(" [~s] ~s~n", [IsApplied(Entry), Entry]) || {Entry, _} <- Available];
 handle_command({ok, {Args, ["new", Name]}}) ->
     Dir = target_dir(Args),
     Timestamp = erlang:system_time(seconds),
@@ -156,7 +123,6 @@ handle_command({ok, {Args, ["setup"]}}) ->
             end
     end;
 handle_command({ok, {_, _}}) ->
-    usage(),
     ok.
 
 %% Utils
@@ -268,12 +234,12 @@ dot_env(Args) ->
 
 -spec report_migrations(up | down, [{Version :: string(), ok | {error, term()}}]) -> ok.
 report_migrations(_, L) when length(L) == 0 ->
-    io:format("No migrations were run~n");
+    logger:warning("No migrations were run");
 report_migrations(up, Results) ->
-    [io:format("Applied ~s: ~p~n", [V, R]) || {V, R} <- Results],
+    [logger:info("Applied ~s: ~p", [V, R]) || {V, R} <- Results],
     ok;
 report_migrations(down, Results) ->
-    [io:format("Reverted ~s: ~p~n", [V, R]) || {V, R} <- Results],
+    [logger:info("Reverted ~s: ~p", [V, R]) || {V, R} <- Results],
     ok.
 
 -define(DRIVER, epgsql).
