@@ -1,6 +1,7 @@
 -module(akm_apikeys_processing).
 
 -include_lib("bouncer_proto/include/bouncer_ctx_v1_thrift.hrl").
+-include_lib("bouncer_proto/include/bouncer_ctx_thrift.hrl").
 -include_lib("epgsql/include/epgsql.hrl").
 
 -export([issue_api_key/3]).
@@ -11,11 +12,13 @@ issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
     Metadata0 = maps:get(<<"metadata">>, ApiKey0, #{}),
 %%  REWORK ненормальный ID, переработать
     ID = akm_id:generate_snowflake_id(),
-    ContextFragment = bouncer_context_helpers:make_auth_fragment(#{
+    ContextV1Fragment = bouncer_context_helpers:make_auth_fragment(#{
         method => <<"IssueApiKey">>,
         scope => [#{party => #{id => PartyID}}],
         token => #{id => ID}
     }),
+    %% TODO ??? maybe wrong, review it !!!
+    ContextFragment = #ctx_ContextFragment{type = 'v1_thrift_binary', content = term_to_binary(ContextV1Fragment)},
     Status = "active",
     Metadata = Metadata0#{
         <<"party.id">> => PartyID

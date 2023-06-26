@@ -53,7 +53,7 @@ pipe(Funs, State) ->
 set_environment(State) ->
     {_, SysConfig} = lookup_key(sys_config, State),
     lists:foreach(fun({Application, Config}) ->
-        application:load(Application),
+        ok = application:load(Application),
         lists:foreach(fun({Param, Value}) ->
             application:set_env(Application, Param, Value)
         end, Config)

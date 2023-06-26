@@ -61,13 +61,9 @@ build(operation, Params = #{id := OperationID}, Acc) ->
 
 %%
 
-maybe(_Name, undefined) ->
-    undefined;
 maybe(Name, Params) ->
     maps:get(Name, Params, undefined).
 
-maybe_entity(_Name, undefined) ->
-    undefined;
 maybe_entity(Name, Params) ->
     case maps:get(Name, Params, undefined) of
         undefined ->

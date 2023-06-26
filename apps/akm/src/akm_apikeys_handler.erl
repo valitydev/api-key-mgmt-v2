@@ -59,7 +59,7 @@
 -spec prepare(operation_id(), request_data(), handler_context(), handler_opts()) -> {ok, request_state()}.
 prepare(OperationID = 'IssueApiKey', #{'partyId' := PartyID, 'ApiKeyIssue' := ApiKey}, Context, _Opts) ->
     Authorize = fun() ->
-        Prototypes = [{operation, #{id => OperationID, party_id => PartyID}}],
+        Prototypes = [{operation, #{id => OperationID, party => PartyID}}],
         Resolution = akm_auth:authorize_operation(Prototypes, Context),
         {ok, Resolution}
     end,
@@ -78,7 +78,7 @@ prepare(OperationID = 'IssueApiKey', #{'partyId' := PartyID, 'ApiKeyIssue' := Ap
     {ok, #{authorize => Authorize, process => Process}};
 prepare(OperationID = 'GetApiKey', #{'partyId' := PartyID, 'apiKeyId' := ApiKeyId}, Context, _Opts) ->
     Authorize = fun() ->
-        Prototypes = [{operation, #{id => OperationID, party_id => PartyID}}],
+        Prototypes = [{operation, #{id => OperationID, party => PartyID}}],
         Resolution = akm_auth:authorize_operation(Prototypes, Context),
         {ok, Resolution}
     end,

@@ -6,7 +6,7 @@
     get_key/4
 ]).
 
--spec issue_key(_, _, _, _) -> _.
+-spec issue_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary(), map()) -> any().
 issue_key(Host, Port, PartyId, ApiKey) ->
     Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys">>,
     Body = jsx:encode(ApiKey),
@@ -20,7 +20,7 @@ issue_key(Host, Port, PartyId, ApiKey) ->
     disconnect(ConnPid),
     parse(Answer).
 
--spec get_key(_, _, _, _) -> _.
+-spec get_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary(), binary()) -> any().
 get_key(Host, Port, PartyId, ApiKeyId) ->
     Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys/", ApiKeyId/binary>>,
     Headers = [
@@ -35,9 +35,11 @@ get_key(Host, Port, PartyId, ApiKeyId) ->
 
 % Internal functions
 
+-spec connect(inet:hostname() | inet:ip_address(), inet:port_number()) -> any().
 connect(Host, Port) ->
     connect(Host, Port, #{}).
 
+-spec connect(inet:hostname() | inet:ip_address(), inet:port_number(), map()) -> any().
 connect(Host, Port, Opts) ->
     {ok, ConnPid} = gun:open(Host, Port, Opts),
     {ok, _} = gun:await_up(ConnPid),

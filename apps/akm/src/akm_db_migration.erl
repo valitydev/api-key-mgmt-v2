@@ -146,7 +146,7 @@ handle_command_result({error, Fmt, Args}) ->
     logger:error(Fmt, Args),
     {error, Fmt}.
 
--spec with_connection(list() | map(), fun((epgsql:connnection()) -> command_result())) ->
+-spec with_connection(list() | map(), fun((pid()) -> command_result())) ->
     command_result().
 with_connection(Args, Fun) ->
     case open_connection(Args) of
@@ -215,7 +215,7 @@ target_dir(Args) ->
         false ->
             ".";
         {dir, Dir} ->
-            filelib:ensure_dir(Dir),
+            _ = filelib:ensure_dir(Dir),
             Dir
     end.
 
@@ -270,13 +270,13 @@ apply_migration(Type, {Version, Migration}, Conn) ->
         {ok, Query} ->
             case if_ok(?DRIVER:squery(Conn, Query)) of
                 ok ->
-                    record_migration(Type, Conn, Version),
+                    _ = record_migration(Type, Conn, Version),
                     ok;
                 {error, Error} ->
                     {error, Error}
             end;
         undefined ->
-            record_migration(Type, Conn, Version),
+            _ = record_migration(Type, Conn, Version),
             ok
     end.
 
