@@ -21,6 +21,7 @@ start_link() ->
 
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
+    ok = dbinit(),
     {LogicHandlers, LogicHandlerSpecs} = get_logic_handler_info(),
     HealthCheck = enable_health_logging(genlib_app:env(akm, health_check, #{})),
     AdditionalRoutes = [{'_', [erl_health_handle:get_route(HealthCheck), get_prometheus_route()]}],
@@ -55,3 +56,19 @@ start_epgsql_pooler() ->
 -spec get_prometheus_route() -> {iodata(), module(), _Opts :: any()}.
 get_prometheus_route() ->
     {"/metrics/[:registry]", prometheus_cowboy2_handler, []}.
+
+get_env_var(Name) ->
+    case os:getenv(Name) of
+        false -> throw({os_env_required, Name});
+        V -> V
+    end.
+
+dbinit() ->
+    WorkDir = get_env_var("WORK_DIR"),
+    EnvPath = WorkDir ++ "/.env",
+    MigrationsPath = WorkDir ++ "/migrations",
+    Cmd = "run",
+    case akm_db_migration:process(["-e", EnvPath, "-d", MigrationsPath, Cmd]) of
+        ok -> ok;
+        {error, Reason} -> throw({migrations_error, Reason})
+    end.
