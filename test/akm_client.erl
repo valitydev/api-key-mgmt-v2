@@ -3,7 +3,9 @@
 %% API
 -export([
     issue_key/4,
-    get_key/4
+    get_key/4,
+    list_keys/4,
+    list_keys/3
 ]).
 
 -spec issue_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary(), map()) -> any().
@@ -11,7 +13,7 @@ issue_key(Host, Port, PartyId, ApiKey) ->
     Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys">>,
     Body = jsx:encode(ApiKey),
     Headers = [
-        {<<"X-Request-ID">>, <<"issue_key_success_test">>},
+        {<<"X-Request-ID">>, <<"issue_key">>},
         {<<"content-type">>, <<"application/json; charset=utf-8">>},
         {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>}
     ],
@@ -24,12 +26,30 @@ issue_key(Host, Port, PartyId, ApiKey) ->
 get_key(Host, Port, PartyId, ApiKeyId) ->
     Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys/", ApiKeyId/binary>>,
     Headers = [
-        {<<"X-Request-ID">>, <<"get_key_success_test">>},
+        {<<"X-Request-ID">>, <<"get_key">>},
         {<<"content-type">>, <<"application/json; charset=utf-8">>},
         {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>}
     ],
     ConnPid = connect(Host, Port),
     Answer = get(ConnPid, Path, Headers),
+    disconnect(ConnPid),
+    parse(Answer).
+
+-spec list_keys(inet:hostname() | inet:ip_address(), inet:port_number(), binary()) -> any().
+list_keys(Host, Port, PartyId) ->
+    list_keys(Host, Port, PartyId, [{<<"limit">>, <<"1000">>}]).
+
+-spec list_keys(inet:hostname() | inet:ip_address(), inet:port_number(), binary(), list()) -> any().
+list_keys(Host, Port, PartyId, QsList) ->
+    Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys">>,
+    Headers = [
+        {<<"X-Request-ID">>, <<"list_keys">>},
+        {<<"content-type">>, <<"application/json; charset=utf-8">>},
+        {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>}
+    ],
+    PathWithQuery = maybe_query(Path, QsList),
+    ConnPid = connect(Host, Port),
+    Answer = get(ConnPid, PathWithQuery, Headers),
     disconnect(ConnPid),
     parse(Answer).
 
@@ -65,5 +85,12 @@ get_response(ConnPid, StreamRef) ->
             {Status, Headers, Body}
     end.
 
+maybe_query(Path, []) -> Path;
+maybe_query(Path, QsList) ->
+    QS = uri_string:compose_query(QsList),
+    <<Path/binary, "?", QS/binary>>.
+
+
 parse({200, _, Body}) -> jsx:decode(Body, [return_maps]);
+parse({404, _, _}) -> not_found;
 parse(Other) -> Other.

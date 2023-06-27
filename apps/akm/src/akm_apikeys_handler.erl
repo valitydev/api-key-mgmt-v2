@@ -90,5 +90,26 @@ prepare(OperationID = 'GetApiKey', #{'partyId' := PartyID, 'apiKeyId' := ApiKeyI
                 akm_handler_utils:reply_error(404)
         end
     end,
+    {ok, #{authorize => Authorize, process => Process}};
+prepare(OperationID = 'ListApiKeys', #{'partyId' := PartyID, 'limit' := Limit, 'status' := Status0,
+    continuationToken := ContinuationToken0}, Context, _Opts) ->
+    Authorize = fun() ->
+        Prototypes = [{operation, #{id => OperationID, party => PartyID}}],
+        Resolution = akm_auth:authorize_operation(Prototypes, Context),
+        {ok, Resolution}
+                end,
+    Status = undef_to_default(Status0, <<"active">>),
+    ContinuationToken = undef_to_default(ContinuationToken0, <<"0">>),
+    Process = fun() ->
+        case akm_apikeys_processing:list_api_keys(PartyID, Status, Limit, erlang:binary_to_integer(ContinuationToken)) of
+            {ok, Response} ->
+                akm_handler_utils:reply_ok(200, Response);
+            {error, not_found} ->
+                akm_handler_utils:reply_error(404)
+        end
+              end,
     {ok, #{authorize => Authorize, process => Process}}
 .
+
+undef_to_default(undefined, Default) -> Default;
+undef_to_default(Value, _Default) -> Value.
