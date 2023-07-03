@@ -107,7 +107,7 @@ prepare(OperationID = 'ListApiKeys', #{'partyId' := PartyID, 'limit' := Limit, '
             {error, not_found} ->
                 akm_handler_utils:reply_error(404)
         end
-              end,
+    end,
     {ok, #{authorize => Authorize, process => Process}}
 .
 

@@ -103,4 +103,3 @@ get_list_keys(Host, Port, PartyId, Limit, #{<<"results">> := ListKeys, <<"contin
     get_list_keys(Host, Port, PartyId, Limit, akm_client:list_keys(Host, Port, PartyId, Params), Acc ++ ListKeys);
 get_list_keys(_Host, _Port, _PartyId, _Limit, #{<<"results">> := ListKeys}, Acc) ->
     Acc ++ ListKeys.
-

@@ -90,7 +90,7 @@ maybe_query(Path, QsList) ->
     QS = uri_string:compose_query(QsList),
     <<Path/binary, "?", QS/binary>>.
 
-
 parse({200, _, Body}) -> jsx:decode(Body, [return_maps]);
 parse({404, _, _}) -> not_found;
+parse({200, _, Body}) -> jsx:decode(Body, [return_maps]);
 parse(Other) -> Other.
