@@ -71,11 +71,11 @@ authorize_api_key(OperationID, ApiKey, _Context, _HandlerOpts) ->
 
 -spec handle_request(
     swag_server_apikeys:operation_id(),
-    akm_wallet_handler:request_data(),
+    akm_apikeys_handler:request_data(),
     swag_server_apikeys:request_context(),
     opts()
 ) ->
-    akm_wallet_handler:request_result().
+    akm_apikeys_handler:request_result().
 handle_request(OperationID, Req, SwagContext, Opts) ->
     #{'X-Request-Deadline' := Header} = Req,
     case akm_utils:parse_deadline(Header) of
@@ -116,11 +116,11 @@ process_request(OperationID, Req, SwagContext0, Opts, WoodyContext0) ->
             process_woody_error(Source, Class, Details)
     end.
 
--spec create_woody_context(akm_wallet_handler:request_data()) -> woody_context:ctx().
+-spec create_woody_context(akm_apikeys_handler:request_data()) -> woody_context:ctx().
 create_woody_context(#{'X-Request-ID' := RequestID}) ->
     RpcID = #{trace_id := TraceID} = woody_context:new_rpc_id(genlib:to_binary(RequestID)),
     ok = scoper:add_meta(#{request_id => RequestID, trace_id => TraceID}),
-    woody_context:new(RpcID, undefined, akm_woody_client:get_service_deadline(wallet)).
+    woody_context:new(RpcID, undefined, akm_woody_client:get_service_deadline(akm)).
 
 put_user_identity(WoodyContext, AuthContext) ->
     woody_user_identity:put(collect_user_identity(AuthContext), WoodyContext).

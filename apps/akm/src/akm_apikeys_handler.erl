@@ -57,9 +57,9 @@
 
 %% Providers
 -spec prepare(operation_id(), request_data(), handler_context(), handler_opts()) -> {ok, request_state()}.
-prepare(OperationID = 'IssueApiKey', #{'partyId' := PartyID, 'ApiKey' := ApiKey}, Context, _Opts) ->
+prepare(OperationID = 'IssueApiKey', #{'partyId' := PartyID, 'ApiKeyIssue' := ApiKey}, Context, _Opts) ->
     Authorize = fun() ->
-        Prototypes = [{operation, #{id => OperationID, party_id => PartyID}}],
+        Prototypes = [{operation, #{id => OperationID, party => PartyID}}],
         Resolution = akm_auth:authorize_operation(Prototypes, Context),
         {ok, Resolution}
     end,
@@ -73,6 +73,21 @@ prepare(OperationID = 'IssueApiKey', #{'partyId' := PartyID, 'ApiKey' := ApiKey}
                     <<"errorType">> => <<"AlreadyExists">>,
                     <<"description">> => <<"This AccessToken already exists">>
                 })
+        end
+    end,
+    {ok, #{authorize => Authorize, process => Process}};
+prepare(OperationID = 'GetApiKey', #{'partyId' := PartyID, 'apiKeyId' := ApiKeyId}, Context, _Opts) ->
+    Authorize = fun() ->
+        Prototypes = [{operation, #{id => OperationID, party => PartyID}}],
+        Resolution = akm_auth:authorize_operation(Prototypes, Context),
+        {ok, Resolution}
+    end,
+    Process = fun() ->
+        case akm_apikeys_processing:get_api_key(ApiKeyId) of
+            {ok, ApiKey} ->
+                akm_handler_utils:reply_ok(200, ApiKey);
+            {error, not_found} ->
+                akm_handler_utils:reply_error(404)
         end
     end,
     {ok, #{authorize => Authorize, process => Process}}

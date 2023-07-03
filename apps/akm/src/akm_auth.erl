@@ -81,7 +81,7 @@ authorize_token_by_type(bearer, Token, TokenContext, WoodyContext) ->
 
 -spec authorize_operation(
     Prototypes :: akm_bouncer_context:prototypes(),
-    Context :: akm_handler_utils:handler_context()
+    Context :: akm_apikeys_handler:handler_context()
 ) -> resolution().
 authorize_operation(Prototypes, Context) ->
     AuthContext = extract_auth_context(Context),
