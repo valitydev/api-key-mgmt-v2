@@ -99,9 +99,9 @@ prepare(OperationID = 'ListApiKeys', #{'partyId' := PartyID, 'limit' := Limit, '
         {ok, Resolution}
                 end,
     Status = undef_to_default(Status0, <<"active">>),
-    ContinuationToken = undef_to_default(ContinuationToken0, <<"0">>),
+    ContinuationToken = erlang:binary_to_integer(undef_to_default(ContinuationToken0, <<"0">>)),
     Process = fun() ->
-        case akm_apikeys_processing:list_api_keys(PartyID, Status, Limit, erlang:binary_to_integer(ContinuationToken)) of
+        case akm_apikeys_processing:list_api_keys(PartyID, Status, Limit, ContinuationToken) of
             {ok, Response} ->
                 akm_handler_utils:reply_ok(200, Response);
             {error, not_found} ->
