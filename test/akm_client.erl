@@ -92,5 +92,4 @@ maybe_query(Path, QsList) ->
 
 parse({200, _, Body}) -> jsx:decode(Body, [return_maps]);
 parse({404, _, _}) -> not_found;
-parse({200, _, Body}) -> jsx:decode(Body, [return_maps]);
 parse(Other) -> Other.
