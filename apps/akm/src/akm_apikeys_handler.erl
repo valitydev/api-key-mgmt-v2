@@ -98,8 +98,8 @@ prepare(OperationID = 'ListApiKeys', #{'partyId' := PartyID, 'limit' := Limit, '
         Resolution = akm_auth:authorize_operation(Prototypes, Context),
         {ok, Resolution}
                 end,
-    Status = undef_to_default(Status0, <<"active">>),
-    ContinuationToken = erlang:binary_to_integer(undef_to_default(ContinuationToken0, <<"0">>)),
+    Status = genlib:define(Status0, <<"active">>),
+    ContinuationToken = erlang:binary_to_integer(genlib:define(ContinuationToken0, <<"0">>)),
     Process = fun() ->
         case akm_apikeys_processing:list_api_keys(PartyID, Status, Limit, ContinuationToken) of
             {ok, Response} ->
@@ -110,6 +110,3 @@ prepare(OperationID = 'ListApiKeys', #{'partyId' := PartyID, 'limit' := Limit, '
     end,
     {ok, #{authorize => Authorize, process => Process}}
 .
-
-undef_to_default(undefined, Default) -> Default;
-undef_to_default(Value, _Default) -> Value.
