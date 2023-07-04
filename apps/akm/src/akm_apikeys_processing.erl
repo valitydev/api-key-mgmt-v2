@@ -63,8 +63,7 @@ get_api_key(ApiKeyId) ->
             {ok, ApiKey}
     end.
 
--spec list_api_keys(binary(), binary(), non_neg_integer(), non_neg_integer()) ->
-    {ok, list_keys_response()} | {error, not_found}.
+-spec list_api_keys(binary(), binary(), non_neg_integer(), non_neg_integer()) -> {ok, list_keys_response()}.
 list_api_keys(PartyId, Status, Limit, Offset) ->
     {ok, Columns, Rows} = epgsql_pool:query(
         main_pool,

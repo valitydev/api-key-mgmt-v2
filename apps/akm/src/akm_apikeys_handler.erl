@@ -101,12 +101,8 @@ prepare(OperationID = 'ListApiKeys', #{'partyId' := PartyID, 'limit' := Limit, '
     Status = genlib:define(Status0, <<"active">>),
     ContinuationToken = erlang:binary_to_integer(genlib:define(ContinuationToken0, <<"0">>)),
     Process = fun() ->
-        case akm_apikeys_processing:list_api_keys(PartyID, Status, Limit, ContinuationToken) of
-            {ok, Response} ->
-                akm_handler_utils:reply_ok(200, Response);
-            {error, not_found} ->
-                akm_handler_utils:reply_error(404)
-        end
+        {ok, Response} = akm_apikeys_processing:list_api_keys(PartyID, Status, Limit, ContinuationToken),
+        akm_handler_utils:reply_ok(200, Response)
     end,
     {ok, #{authorize => Authorize, process => Process}}
 .
