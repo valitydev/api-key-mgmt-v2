@@ -72,8 +72,8 @@ list_keys_test(Config) ->
     Port = akm_ct_utils:lookup_config(akm_port, Config),
     PartyId = <<"list_test_party">>,
 
-    %% check not found
-    not_found = akm_client:list_keys(Host, Port, PartyId),
+    %% check empty list
+    #{<<"results">> := []} = akm_client:list_keys(Host, Port, PartyId),
 
     ListKeys = lists:foldl(fun(Num, Acc) ->
         #{<<"ApiKey">> := ApiKey} = akm_client:issue_key(Host, Port, PartyId,

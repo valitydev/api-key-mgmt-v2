@@ -72,15 +72,8 @@ list_api_keys(PartyId, Status, Limit, Offset) ->
         "ORDER BY created_at LIMIT $3 OFFSET $4",
         [PartyId, Status, Limit, Offset]
     ),
-    Count = erlang:length(Rows),
-    case Count =:= 0 of
-        true when Offset =:= 0 ->
-            %% first request
-            {error, not_found};
+    case erlang:length(Rows) < Limit of
         true ->
-            % last piece of data was in previous answer (if there was Count =:= Limit)
-            {ok, #{results => []}};
-        false when Count < Limit ->
             % last piece of data
             {ok, #{results => to_maps(Columns, Rows)}};
         false ->
