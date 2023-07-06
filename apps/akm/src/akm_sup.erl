@@ -11,6 +11,8 @@
 %% Supervisor callbacks
 -export([init/1]).
 
+-export([init_erlydtl/0]).
+
 %%
 
 -spec start_link() -> {ok, pid()} | {error, {already_started, pid()}}.
@@ -30,7 +32,7 @@ init([]) ->
     ok = start_epgsql_pooler(),
     {ok, {
         {one_for_all, 0, 1},
-            LogicHandlerSpecs ++ [SwaggerSpec]
+        LogicHandlerSpecs ++ [SwaggerSpec]
     }}.
 
 -spec get_logic_handler_info() -> {akm_swagger_server:logic_handlers(), [supervisor:child_spec()]}.
@@ -72,3 +74,21 @@ dbinit() ->
         ok -> ok;
         {error, Reason} -> throw({migrations_error, Reason})
     end.
+
+-define(DTL_TEMPLATES, [{akm_mail_request_revoke, "request_revoke.html"}]).
+
+-spec init_erlydtl() -> ok.
+init_erlydtl() ->
+    WorkDir = get_env_var("PWD"),
+    ok = lists:foreach(
+        fun({Module, Filename}) ->
+            MailTmplPath = WorkDir ++ "/priv/mails/" ++ Filename,
+            {ok, Module} = erlydtl:compile(
+                {file, MailTmplPath},
+                Module,
+                [{out_dir, WorkDir ++ "/_build/default/lib/akm/ebin"}]
+            )
+        end,
+        ?DTL_TEMPLATES
+    ),
+    halt(0).

@@ -6,11 +6,12 @@
 
 -export([issue_api_key/3]).
 -export([get_api_key/1]).
+-export([request_revoke/4]).
 
 -spec issue_api_key(_, _, _) -> _.
 issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
     Metadata0 = maps:get(<<"metadata">>, ApiKey0, #{}),
-%%  REWORK ненормальный ID, переработать
+    %%  REWORK ненормальный ID, переработать
     ID = akm_id:generate_snowflake_id(),
     ContextV1Fragment = bouncer_context_helpers:make_auth_fragment(#{
         method => <<"IssueApiKey">>,
@@ -28,9 +29,9 @@ issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
         {ok, #{token := Token}} ->
             {ok, _, Columns, Rows} = epgsql_pool:query(
                 main_pool,
-                "INSERT INTO apikeys (id, name, party_id, status, metadata)"
-                "VALUES ($1, $2, $3, $4, $5) RETURNING id, name, status, metadata, created_at",
-                [ID, Name, PartyID, Status, jsx:encode(Metadata)]
+                "INSERT INTO apikeys (id, name, party_id, status, pending_status, metadata)"
+                "VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, status, metadata, created_at",
+                [ID, Name, PartyID, Status, Status, jsx:encode(Metadata)]
             ),
             [ApiKey | _] = to_maps(Columns, Rows),
             Resp = #{
@@ -46,52 +47,97 @@ issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
 get_api_key(ApiKeyId) ->
     Result = epgsql_pool:query(
         main_pool,
-        "SELECT id, name, status, metadata, created_at FROM apikeys where id = $1",
+        "SELECT id, name, status, metadata, created_at FROM apikeys WHERE id = $1",
         [ApiKeyId]
     ),
     case Result of
         {ok, _Columns, []} ->
             {error, not_found};
         {ok, Columns, Rows} ->
-            [ApiKey | _ ] = to_maps(Columns, Rows),
+            [ApiKey | _] = to_marshalled_maps(Columns, Rows),
             {ok, ApiKey}
     end.
+
+-spec request_revoke(binary(), binary(), binary(), binary()) ->
+    {ok, revoke_email_sent} | {error, not_found}.
+request_revoke(Email, PartyID, ApiKeyId, Status) ->
+    case get_full_api_key(ApiKeyId) of
+        {error, not_found} ->
+            {error, not_found};
+        {ok, #{
+            <<"pending_status">> := PreviousStatus,
+            <<"revoke_token">> := PreviousToken
+        }} ->
+            Token = akm_id:generate_snowflake_id(),
+            case
+                epgsql_pool:query(
+                    main_pool,
+                    "UPDATE apikeys SET pending_status = $1, revoke_token = $2 WHERE id = $1",
+                    [Status, Token]
+                )
+            of
+                {ok, 1} ->
+                    case akm_mailer:send_revoke_mail(Email, PartyID, ApiKeyId, Token) of
+                        ok ->
+                            {ok, revoke_email_sent};
+                        {error, {failed_to_send, Reason}} ->
+                            %% If we can't do it here, there's nothing to be done
+                            {ok, 1} = epgsql_pool:query(
+                                main_pool,
+                                "UPDATE apikeys SET pending_status = $1, revoke_token = $2 WHERE id = $1",
+                                [PreviousStatus, PreviousToken]
+                            ),
+                            error({failed_to_send, Reason})
+                    end;
+                {ok, 0} ->
+                    {error, not_found}
+            end
+    end.
+
+%%
 
 get_authority_id() ->
     application:get_env(akm, authority_id).
 
-%% Marshalling
+get_full_api_key(ApiKeyId) ->
+    Result = epgsql_pool:query(
+        main_pool,
+        "SELECT * FROM apikeys WHERE id = $1",
+        [ApiKeyId]
+    ),
+    case Result of
+        {ok, _Columns, []} ->
+            {error, not_found};
+        {ok, Columns, Rows} ->
+            [ApiKey | _] = to_maps(Columns, Rows),
+            {ok, ApiKey}
+    end.
 
-marshall_api_key(#{
-        <<"id">> := ID,
-        <<"created_at">> := DateTime,
-        <<"name">> := Name,
-        <<"status">> := Status,
-        <<"metadata">> := Metadata
-    }) ->
-    #{
-        <<"id">> => ID,
-        <<"createdAt">> => DateTime,
-        <<"name">> => Name,
-        <<"status">> => Status,
-        <<"metadata">> => decode_json(Metadata)
-    }.
+%% Encode/Decode
 
-marshall_access_token(Token) ->
-    #{
-        <<"accessToken">> => Token
-    }.
+to_marshalled_maps(Columns, Rows) ->
+    to_maps(Columns, Rows, fun marshall_api_key/1).
 
 to_maps(Columns, Rows) ->
+    to_maps(Columns, Rows, fun(V) -> V end).
+
+to_maps(Columns, Rows, TransformRowFun) ->
     ColNumbers = erlang:length(Columns),
     Seq = lists:seq(1, ColNumbers),
-    lists:map(fun(Row) ->
-        Data = lists:foldl(fun(Pos, Acc) ->
-            #column{name = Field, type = Type} = lists:nth(Pos, Columns),
-            Acc#{Field => convert(Type, erlang:element(Pos, Row))}
-        end, #{}, Seq),
-        marshall_api_key(Data)
-    end, Rows).
+    lists:map(
+        fun(Row) ->
+            Data = lists:foldl(
+                fun(Pos, Acc) ->
+                    #column{name = Field, type = Type} = lists:nth(Pos, Columns),
+                    Acc#{Field => convert(Type, erlang:element(Pos, Row))}
+                end,
+                #{},
+                Seq
+            ),
+            TransformRowFun(Data)
+        end,
+        Rows
+    ).
 
 %% for reference https://github.com/epgsql/epgsql#data-representation
 convert(timestamp, Value) ->
@@ -109,3 +155,25 @@ datetime_to_binary(DateTime) ->
 
 decode_json(null) -> #{};
 decode_json(Value) -> jsx:decode(Value, [return_maps]).
+
+%% Marshalling
+
+marshall_api_key(#{
+    <<"id">> := ID,
+    <<"created_at">> := DateTime,
+    <<"name">> := Name,
+    <<"status">> := Status,
+    <<"metadata">> := Metadata
+}) ->
+    #{
+        <<"id">> => ID,
+        <<"createdAt">> => DateTime,
+        <<"name">> => Name,
+        <<"status">> => Status,
+        <<"metadata">> => decode_json(Metadata)
+    }.
+
+marshall_access_token(Token) ->
+    #{
+        <<"accessToken">> => Token
+    }.

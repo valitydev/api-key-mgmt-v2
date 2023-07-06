@@ -50,6 +50,7 @@
 -export_type([headers/0]).
 -export_type([response_data/0]).
 -export_type([request_context/0]).
+-export_type([auth_context/0]).
 -export_type([operation_id/0]).
 -export_type([handler_context/0]).
 -export_type([swag_server_get_schema_fun/0]).
@@ -90,5 +91,37 @@ prepare(OperationID = 'GetApiKey', #{'partyId' := PartyID, 'apiKeyId' := ApiKeyI
                 akm_handler_utils:reply_error(404)
         end
     end,
+    {ok, #{authorize => Authorize, process => Process}};
+prepare(OperationID = 'RequestRevokeApiKey', Params, Context, _Opts) ->
+    #{'partyId' := PartyID, 'apiKeyId' := ApiKeyId, status := Status} = Params,
+    Authorize = fun() ->
+        Prototypes = [{operation, #{id => OperationID, party => PartyID}}],
+        Resolution = akm_auth:authorize_operation(Prototypes, Context),
+        {ok, Resolution}
+    end,
+    Process = fun() ->
+        Email = akm_auth:get_user_email(akm_auth:extract_auth_context(Context)),
+        case akm_apikeys_processing:request_revoke(Email, PartyID, ApiKeyId, Status) of
+            {ok, ApiKey} ->
+                akm_handler_utils:reply_ok(200, ApiKey);
+            {error, not_found} ->
+                akm_handler_utils:reply_error(404)
+        end
+    end,
     {ok, #{authorize => Authorize, process => Process}}
+%%prepare(OperationID = 'RevokeApiKey', #{'partyId' := PartyID, 'apiKeyId' := ApiKeyId}, Context, _Opts) ->
+%%    Authorize = fun() ->
+%%        Prototypes = [{operation, #{id => OperationID, party => PartyID}}],
+%%        Resolution = akm_auth:authorize_operation(Prototypes, Context),
+%%        {ok, Resolution}
+%%    end,
+%%    Process = fun() ->
+%%        case akm_apikeys_processing:revoke(ApiKeyId) of
+%%            {ok, ApiKey} ->
+%%                akm_handler_utils:reply_ok(200, ApiKey);
+%%            {error, not_found} ->
+%%                akm_handler_utils:reply_error(404)
+%%        end
+%%    end,
+%%    {ok, #{authorize => Authorize, process => Process}}
 .

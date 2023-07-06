@@ -6,6 +6,7 @@
 -export([get_party_id/1]).
 -export([get_user_id/1]).
 -export([get_user_email/1]).
+-export([extract_auth_context/1]).
 
 -export([preauthorize_api_key/1]).
 -export([authorize_api_key/3]).
@@ -101,6 +102,8 @@ authorize_operation(Prototypes, Context) ->
 get_token_keeper_fragment(?AUTHORIZED(#{context := Context})) ->
     Context.
 
+-spec extract_auth_context(akm_apikeys_handler:handler_context()) ->
+    akm_apikeys_handler:auth_context().
 extract_auth_context(#{swagger_context := #{auth_context := AuthContext}}) ->
     AuthContext.
 

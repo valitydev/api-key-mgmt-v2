@@ -14,18 +14,17 @@
 
 -spec init_per_suite(_) -> _.
 init_per_suite(Config) ->
-
     Config.
 
 -spec end_per_suite(_) -> _.
 end_per_suite(_Config) ->
-
     ok.
 
 -spec all() -> list().
-all() -> [
-    issue_get_key_success_test
-].
+all() ->
+    [
+        issue_get_key_success_test
+    ].
 
 -spec issue_get_key_success_test(_) -> _.
 issue_get_key_success_test(Config) ->
@@ -54,5 +53,3 @@ issue_get_key_success_test(Config) ->
 
     %% check getApiKey
     ExpectedApiKey = akm_client:get_key(Host, Port, PartyId, ApiKeyId).
-
-
