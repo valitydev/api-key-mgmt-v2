@@ -6,6 +6,12 @@
 
 -export([issue_api_key/3]).
 -export([get_api_key/1]).
+-export([list_api_keys/4]).
+
+-type list_keys_response() :: #{
+    results => [map()],
+    continuationToken := binary()
+}.
 
 -spec issue_api_key(_, _, _) -> _.
 issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
@@ -56,6 +62,24 @@ get_api_key(ApiKeyId) ->
             [ApiKey | _ ] = to_maps(Columns, Rows),
             {ok, ApiKey}
     end.
+
+-spec list_api_keys(binary(), binary(), non_neg_integer(), non_neg_integer()) -> {ok, list_keys_response()}.
+list_api_keys(PartyId, Status, Limit, Offset) ->
+    {ok, Columns, Rows} = epgsql_pool:query(
+        main_pool,
+        "SELECT id, name, status, metadata, created_at FROM apikeys where party_id = $1 AND status = $2 "
+        "ORDER BY created_at LIMIT $3 OFFSET $4",
+        [PartyId, Status, Limit, Offset]
+    ),
+    case erlang:length(Rows) < Limit of
+        true ->
+            % last piece of data
+            {ok, #{results => to_maps(Columns, Rows)}};
+        false ->
+            {ok, #{results => to_maps(Columns, Rows), continuationToken => erlang:integer_to_binary(Offset + Limit)}}
+    end.
+
+%% Internal functions
 
 get_authority_id() ->
     application:get_env(akm, authority_id).

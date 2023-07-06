@@ -90,5 +90,19 @@ prepare(OperationID = 'GetApiKey', #{'partyId' := PartyID, 'apiKeyId' := ApiKeyI
                 akm_handler_utils:reply_error(404)
         end
     end,
+    {ok, #{authorize => Authorize, process => Process}};
+prepare(OperationID = 'ListApiKeys', #{'partyId' := PartyID, 'limit' := Limit, 'status' := Status0,
+    continuationToken := ContinuationToken0}, Context, _Opts) ->
+    Authorize = fun() ->
+        Prototypes = [{operation, #{id => OperationID, party => PartyID}}],
+        Resolution = akm_auth:authorize_operation(Prototypes, Context),
+        {ok, Resolution}
+                end,
+    Status = genlib:define(Status0, <<"active">>),
+    ContinuationToken = erlang:binary_to_integer(genlib:define(ContinuationToken0, <<"0">>)),
+    Process = fun() ->
+        {ok, Response} = akm_apikeys_processing:list_api_keys(PartyID, Status, Limit, ContinuationToken),
+        akm_handler_utils:reply_ok(200, Response)
+    end,
     {ok, #{authorize => Authorize, process => Process}}
 .
