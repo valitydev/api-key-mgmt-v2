@@ -77,7 +77,7 @@ dbinit() ->
 
 -define(DTL_TEMPLATES, [{akm_mail_request_revoke, "request_revoke.html"}]).
 
--spec init_erlydtl() -> ok.
+-spec init_erlydtl() -> no_return().
 init_erlydtl() ->
     WorkDir = get_env_var("PWD"),
     ok = lists:foreach(

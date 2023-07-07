@@ -116,8 +116,8 @@ prepare(OperationID = 'RequestRevokeApiKey', Params, Context, _Opts) ->
     Process = fun() ->
         Email = akm_auth:get_user_email(akm_auth:extract_auth_context(Context)),
         case akm_apikeys_processing:request_revoke(Email, PartyID, ApiKeyId, Status) of
-            {ok, ApiKey} ->
-                akm_handler_utils:reply_ok(200, ApiKey);
+            {ok, revoke_email_sent} ->
+                akm_handler_utils:reply_ok(204);
             {error, not_found} ->
                 akm_handler_utils:reply_error(404)
         end

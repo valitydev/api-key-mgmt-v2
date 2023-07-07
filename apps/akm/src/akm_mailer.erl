@@ -6,7 +6,11 @@
 
 -export([send_revoke_mail/4]).
 
--spec send_revoke_mail(string(), binary(), binary(), binary()) -> ok.
+%% Suppress akm_mail_request_revoke:render/1 being unknown, as there's no erlang file generated
+-dialyzer({[no_unknown], [send_revoke_mail/4]}).
+
+-spec send_revoke_mail(string(), binary(), binary(), binary()) ->
+    ok | {error, {failed_to_send, term()}}.
 send_revoke_mail(Email, PartyID, ApiKeyID, Token) ->
     {ok, Body} = akm_mail_request_revoke:render([
         {url, url()},

@@ -26,7 +26,9 @@
         eql,
         swag_server_apikeys,
         snowflake,
-        woody_user_identity
+        woody_user_identity,
+        erlydtl,
+        gen_smtp
     ]},
     {env, []}
 ]}.
