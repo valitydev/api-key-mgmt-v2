@@ -92,8 +92,17 @@ prepare(OperationID = 'GetApiKey', #{'partyId' := PartyID, 'apiKeyId' := ApiKeyI
         end
     end,
     {ok, #{authorize => Authorize, process => Process}};
-prepare(OperationID = 'ListApiKeys', #{'partyId' := PartyID, 'limit' := Limit, 'status' := Status0,
-    continuationToken := ContinuationToken0}, Context, _Opts) ->
+prepare(
+    OperationID = 'ListApiKeys',
+    #{
+        'partyId' := PartyID,
+        'limit' := Limit,
+        'status' := Status0,
+        continuationToken := ContinuationToken0
+    },
+    Context,
+    _Opts
+) ->
     Authorize = fun() ->
         Prototypes = [{operation, #{id => OperationID, party => PartyID}}],
         Resolution = akm_auth:authorize_operation(Prototypes, Context),

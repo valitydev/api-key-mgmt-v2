@@ -85,7 +85,8 @@ get_response(ConnPid, StreamRef) ->
             {Status, Headers, Body}
     end.
 
-maybe_query(Path, []) -> Path;
+maybe_query(Path, []) ->
+    Path;
 maybe_query(Path, QsList) ->
     QS = uri_string:compose_query(QsList),
     <<Path/binary, "?", QS/binary>>.
