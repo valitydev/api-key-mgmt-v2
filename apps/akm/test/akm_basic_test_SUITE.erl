@@ -16,20 +16,19 @@
 
 -spec init_per_suite(_) -> _.
 init_per_suite(Config) ->
-
     Config.
 
 -spec end_per_suite(_) -> _.
 end_per_suite(_Config) ->
-
     ok.
 
 -spec all() -> list().
-all() -> [
-    issue_get_key_success_test,
-    get_unknown_key_test,
-    list_keys_test
-].
+all() ->
+    [
+        issue_get_key_success_test,
+        get_unknown_key_test,
+        list_keys_test
+    ].
 
 -spec issue_get_key_success_test(_) -> _.
 issue_get_key_success_test(Config) ->
@@ -75,11 +74,19 @@ list_keys_test(Config) ->
     %% check empty list
     #{<<"results">> := []} = akm_client:list_keys(Host, Port, PartyId),
 
-    ListKeys = lists:foldl(fun(Num, Acc) ->
-        #{<<"ApiKey">> := ApiKey} = akm_client:issue_key(Host, Port, PartyId,
-            #{name => <<(erlang:integer_to_binary(Num))/binary, "list_keys_success">>}),
-        [ApiKey | Acc]
-    end, [], lists:seq(1, 10)),
+    ListKeys = lists:foldl(
+        fun(Num, Acc) ->
+            #{<<"ApiKey">> := ApiKey} = akm_client:issue_key(
+                Host,
+                Port,
+                PartyId,
+                #{name => <<(erlang:integer_to_binary(Num))/binary, "list_keys_success">>}
+            ),
+            [ApiKey | Acc]
+        end,
+        [],
+        lists:seq(1, 10)
+    ),
     ExpectedList = lists:reverse(ListKeys),
 
     %% check one batch
@@ -89,14 +96,25 @@ list_keys_test(Config) ->
 
     %% check continuation when limit multiple of the count keys
     MultLimit = <<"1">>,
-    ExpectedList = get_list_keys(Host, Port, PartyId, MultLimit,
-        akm_client:list_keys(Host, Port, PartyId, [{<<"limit">>, MultLimit}]), []),
+    ExpectedList = get_list_keys(
+        Host,
+        Port,
+        PartyId,
+        MultLimit,
+        akm_client:list_keys(Host, Port, PartyId, [{<<"limit">>, MultLimit}]),
+        []
+    ),
 
     %% check continuation when limit NOT multiple of the count keys
     NoMultLimit = <<"3">>,
-    ExpectedList = get_list_keys(Host, Port, PartyId, NoMultLimit,
-        akm_client:list_keys(Host, Port, PartyId, [{<<"limit">>, NoMultLimit}]), []).
-
+    ExpectedList = get_list_keys(
+        Host,
+        Port,
+        PartyId,
+        NoMultLimit,
+        akm_client:list_keys(Host, Port, PartyId, [{<<"limit">>, NoMultLimit}]),
+        []
+    ).
 
 get_list_keys(Host, Port, PartyId, Limit, #{<<"results">> := ListKeys, <<"continuationToken">> := Cont}, Acc) ->
     Params = [{<<"limit">>, Limit}, {<<"continuationToken">>, Cont}],

@@ -59,3 +59,28 @@ services:
       interval: 5s
       timeout: 1s
       retries: 20
+
+  smtp4dev:
+    image: rnwood/smtp4dev:v3
+    ports:
+      # Change the number before : to the port the web interface should be accessible on
+      - '5000:80'
+      # Change the number before : to the port the SMTP server should be accessible on
+      - '25:25'
+      # Change the number before : to the port the IMAP server should be accessible on
+      - '143:143'
+    volumes:
+      # This is where smtp4dev stores the database..
+      - smtp4dev-data:/smtp4dev
+    environment:
+      #Specifies the server hostname. Used in auto-generated TLS certificate if enabled.
+      - ServerOptions__HostName=smtp4dev
+
+      #The username for the SMTP server used to relay messages. If "" no authentication is attempted.
+      - RelayOptions__Login=username
+
+      #The password for the SMTP server used to relay messages
+      - RelayOptions__Password=password
+
+volumes:
+  smtp4dev-data:
