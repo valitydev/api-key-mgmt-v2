@@ -8,6 +8,7 @@
 -export([get_api_key/1]).
 -export([list_api_keys/4]).
 -export([request_revoke/4]).
+-export([revoke/2]).
 
 -type list_keys_response() :: #{
     results => [map()],
@@ -109,14 +110,37 @@ request_revoke(Email, PartyID, ApiKeyId, Status) ->
                             %% If we can't do it here, there's nothing to be done
                             {ok, 1} = epgsql_pool:query(
                                 main_pool,
-                                "UPDATE apikeys SET pending_status = $1, revoke_token = $2 WHERE id = $1",
-                                [PreviousStatus, PreviousToken]
+                                "UPDATE apikeys SET pending_status = $1, revoke_token = $2 WHERE id = $3",
+                                [PreviousStatus, PreviousToken, ApiKeyId]
                             ),
                             error({failed_to_send, Reason})
                     end;
                 {ok, 0} ->
                     {error, not_found}
             end
+    end.
+
+-spec revoke(binary(), binary()) -> ok | {error, not_found}.
+revoke(ApiKeyId, RevokeToken) ->
+    case get_full_api_key(ApiKeyId) of
+        {ok, #{
+            <<"pending_status">> := PendingStatus,
+            <<"revoke_token">> := RevokeToken
+        }} ->
+            case
+                epgsql_pool:query(
+                    main_pool,
+                    "UPDATE apikeys SET status = $1, revoke_token = nil WHERE id = $2",
+                    [PendingStatus, ApiKeyId]
+                )
+            of
+                {ok, 1} ->
+                    ok;
+                {ok, 0} ->
+                    {error, not_found}
+            end;
+        _ ->
+            {error, not_found}
     end.
 
 %% Internal functions

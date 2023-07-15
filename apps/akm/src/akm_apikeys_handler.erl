@@ -131,20 +131,24 @@ prepare(OperationID = 'RequestRevokeApiKey', Params, Context, _Opts) ->
                 akm_handler_utils:reply_error(404)
         end
     end,
-    {ok, #{authorize => Authorize, process => Process}}
-%%prepare(OperationID = 'RevokeApiKey', #{'partyId' := PartyID, 'apiKeyId' := ApiKeyId}, Context, _Opts) ->
-%%    Authorize = fun() ->
-%%        Prototypes = [{operation, #{id => OperationID, party => PartyID}}],
-%%        Resolution = akm_auth:authorize_operation(Prototypes, Context),
-%%        {ok, Resolution}
-%%    end,
-%%    Process = fun() ->
-%%        case akm_apikeys_processing:revoke(ApiKeyId) of
-%%            {ok, ApiKey} ->
-%%                akm_handler_utils:reply_ok(200, ApiKey);
-%%            {error, not_found} ->
-%%                akm_handler_utils:reply_error(404)
-%%        end
-%%    end,
-%%    {ok, #{authorize => Authorize, process => Process}}
-.
+    {ok, #{authorize => Authorize, process => Process}};
+prepare(
+    OperationID = 'RevokeApiKey',
+    #{'partyId' := PartyID, 'apiKeyId' := ApiKeyId, 'apiKeyRevokeToken' := Token},
+    Context,
+    _Opts
+) ->
+    Authorize = fun() ->
+        Prototypes = [{operation, #{id => OperationID, party => PartyID}}],
+        Resolution = akm_auth:authorize_operation(Prototypes, Context),
+        {ok, Resolution}
+    end,
+    Process = fun() ->
+        case akm_apikeys_processing:revoke(ApiKeyId, Token) of
+            ok ->
+                akm_handler_utils:reply_ok(204);
+            {error, not_found} ->
+                akm_handler_utils:reply_error(404)
+        end
+    end,
+    {ok, #{authorize => Authorize, process => Process}}.
