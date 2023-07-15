@@ -20,6 +20,7 @@ init_per_suite(Config) ->
 
 -spec end_per_suite(_) -> _.
 end_per_suite(_Config) ->
+    {ok, _, _} = epgsql_pool:query(main_pool, "TRUNCATE apikeys"),
     ok.
 
 -spec all() -> list().

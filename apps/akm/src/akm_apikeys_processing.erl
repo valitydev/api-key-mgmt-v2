@@ -39,7 +39,7 @@ issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
                 "VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, status, metadata, created_at",
                 [ID, Name, PartyID, Status, Status, jsx:encode(Metadata)]
             ),
-            [ApiKey | _] = to_maps(Columns, Rows),
+            [ApiKey | _] = to_marshalled_maps(Columns, Rows),
             Resp = #{
                 <<"AccessToken">> => marshall_access_token(Token),
                 <<"ApiKey">> => ApiKey
@@ -75,9 +75,12 @@ list_api_keys(PartyId, Status, Limit, Offset) ->
     case erlang:length(Rows) < Limit of
         true ->
             % last piece of data
-            {ok, #{results => to_maps(Columns, Rows)}};
+            {ok, #{results => to_marshalled_maps(Columns, Rows)}};
         false ->
-            {ok, #{results => to_maps(Columns, Rows), continuationToken => erlang:integer_to_binary(Offset + Limit)}}
+            {ok, #{
+                results => to_marshalled_maps(Columns, Rows),
+                continuationToken => erlang:integer_to_binary(Offset + Limit)
+            }}
     end.
 
 -spec request_revoke(binary(), binary(), binary(), binary()) ->
