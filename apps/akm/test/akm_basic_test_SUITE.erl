@@ -4,15 +4,22 @@
 -export([
     init_per_suite/1,
     end_per_suite/1,
-    all/0
+    all/0,
+    groups/0
 ]).
 
 -export([issue_get_key_success_test/1]).
 -export([get_unknown_key_test/1]).
 -export([list_keys_test/1]).
+-export([revoke_key_test/1]).
 
 %% also defined in ct hook module akm_cth.erl
 -define(ACCESS_TOKEN, <<"some.access.token">>).
+
+-type config() :: hg_ct_helper:config().
+-type test_case_name() :: hg_ct_helper:test_case_name().
+-type group_name() :: hg_ct_helper:group_name().
+-type test_result() :: any() | no_return().
 
 -spec init_per_suite(_) -> _.
 init_per_suite(Config) ->
@@ -20,18 +27,25 @@ init_per_suite(Config) ->
 
 -spec end_per_suite(_) -> _.
 end_per_suite(_Config) ->
-    {ok, _, _} = epgsql_pool:query(main_pool, "TRUNCATE apikeys"),
+    ok = akm_ct_utils:cleanup_db(),
     ok.
 
--spec all() -> list().
+-spec all() -> [{group, test_case_name()}].
 all() ->
+    [{group, basic_operations}].
+
+-spec groups() -> [{group_name(), list(), [test_case_name()]}].
+groups() ->
     [
-        issue_get_key_success_test,
-        get_unknown_key_test,
-        list_keys_test
+        {basic_operations, [], [
+            issue_get_key_success_test,
+            get_unknown_key_test,
+            list_keys_test,
+            revoke_key_test
+        ]}
     ].
 
--spec issue_get_key_success_test(_) -> _.
+-spec issue_get_key_success_test(config()) -> test_result().
 issue_get_key_success_test(Config) ->
     Host = akm_ct_utils:lookup_config(akm_host, Config),
     Port = akm_ct_utils:lookup_config(akm_port, Config),
@@ -59,14 +73,14 @@ issue_get_key_success_test(Config) ->
     %% check getApiKey
     ExpectedApiKey = akm_client:get_key(Host, Port, PartyId, ApiKeyId).
 
--spec get_unknown_key_test(_) -> _.
+-spec get_unknown_key_test(config()) -> test_result().
 get_unknown_key_test(Config) ->
     Host = akm_ct_utils:lookup_config(akm_host, Config),
     Port = akm_ct_utils:lookup_config(akm_port, Config),
     PartyId = <<"unknown_key_test_party">>,
     not_found = akm_client:get_key(Host, Port, PartyId, <<"UnknownKeyId">>).
 
--spec list_keys_test(_) -> _.
+-spec list_keys_test(config()) -> test_result().
 list_keys_test(Config) ->
     Host = akm_ct_utils:lookup_config(akm_host, Config),
     Port = akm_ct_utils:lookup_config(akm_port, Config),
@@ -116,6 +130,21 @@ list_keys_test(Config) ->
         akm_client:list_keys(Host, Port, PartyId, [{<<"limit">>, NoMultLimit}]),
         []
     ).
+
+-spec revoke_key_test(config()) -> test_result().
+revoke_key_test(Config) ->
+    Host = akm_ct_utils:lookup_config(akm_host, Config),
+    Port = akm_ct_utils:lookup_config(akm_port, Config),
+    PartyId = <<"revoke_party">>,
+
+    #{
+        <<"ApiKey">> := #{
+            <<"id">> := ApiKeyId
+        }
+    } = akm_client:issue_key(Host, Port, PartyId, #{name => <<"live-site-integration">>}),
+
+    ok = akm_client:revoke_key(Host, Port, PartyId, ApiKeyId)
+.
 
 get_list_keys(Host, Port, PartyId, Limit, #{<<"results">> := ListKeys, <<"continuationToken">> := Cont}, Acc) ->
     Params = [{<<"limit">>, Limit}, {<<"continuationToken">>, Cont}],

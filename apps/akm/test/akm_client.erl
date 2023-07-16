@@ -5,7 +5,8 @@
     issue_key/4,
     get_key/4,
     list_keys/4,
-    list_keys/3
+    list_keys/3,
+    revoke_key/4
 ]).
 
 -spec issue_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary(), map()) -> any().
@@ -53,6 +54,20 @@ list_keys(Host, Port, PartyId, QsList) ->
     disconnect(ConnPid),
     parse(Answer).
 
+-spec revoke_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary(), binary()) -> any().
+revoke_key(Host, Port, PartyId, ApiKeyId) ->
+    Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys/", ApiKeyId/binary, "/status">>,
+    Headers = [
+        {<<"X-Request-ID">>, <<"list_keys">>},
+        {<<"content-type">>, <<"application/json; charset=utf-8">>},
+        {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>}
+    ],
+    Body = #{<<"status">> => <<"Revoked">>},
+    ConnPid = connect(Host, Port),
+    Answer = put(ConnPid, Path, Headers, Body),
+    disconnect(ConnPid),
+    parse(Answer).
+
 % Internal functions
 
 -spec connect(inet:hostname() | inet:ip_address(), inet:port_number()) -> any().
@@ -74,6 +89,10 @@ get(ConnPid, Path, Headers) ->
 
 post(ConnPid, Path, Headers, Body) ->
     StreamRef = gun:post(ConnPid, Path, Headers, Body),
+    get_response(ConnPid, StreamRef).
+
+put(ConnPid, Path, Headers, Body) ->
+    StreamRef = gun:put(ConnPid, Path, Headers, Body),
     get_response(ConnPid, StreamRef).
 
 get_response(ConnPid, StreamRef) ->

@@ -88,6 +88,14 @@ prepare_config(State) ->
                     user_id => <<"dev.vality.user.id">>,
                     user_email => <<"dev.vality.user.email">>
                 }
+            }},
+
+            {mailer, #{
+                url => "vality.dev",
+                from_email => "example@example.com",
+                relay => "smtp4dev",
+                username => "username",
+                password => "password"
             }}
         ]}
     ],
