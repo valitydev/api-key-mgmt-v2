@@ -103,18 +103,7 @@ request_revoke(Email, PartyID, ApiKeyId, Status) ->
                 )
             of
                 {ok, 1} ->
-                    case akm_mailer:send_revoke_mail(Email, PartyID, ApiKeyId, Token) of
-                        ok ->
-                            {ok, revoke_email_sent};
-                        {error, {failed_to_send, Reason}} ->
-                            %% If we can't do it here, there's nothing to be done
-                            {ok, 1} = epgsql_pool:query(
-                                main_pool,
-                                "UPDATE apikeys SET pending_status = $1, revoke_token = $2 WHERE id = $3",
-                                [PreviousStatus, PreviousToken, ApiKeyId]
-                            ),
-                            error({failed_to_send, Reason})
-                    end;
+                    send_revoke_email(Email, PartyID, ApiKeyId, Token, PreviousStatus, PreviousToken);
                 {ok, 0} ->
                     {error, not_found}
             end
@@ -144,6 +133,20 @@ revoke(ApiKeyId, RevokeToken) ->
     end.
 
 %% Internal functions
+
+send_revoke_email(Email, PartyID, ApiKeyId, Token, PreviousStatus, PreviousToken) ->
+    case akm_mailer:send_revoke_mail(Email, PartyID, ApiKeyId, Token) of
+        ok ->
+            {ok, revoke_email_sent};
+        {error, {failed_to_send, Reason}} ->
+            %% If we can't do it here, there's nothing to be done
+            {ok, 1} = epgsql_pool:query(
+                main_pool,
+                "UPDATE apikeys SET pending_status = $1, revoke_token = $2 WHERE id = $3",
+                [PreviousStatus, PreviousToken, ApiKeyId]
+            ),
+            error({failed_to_send, Reason})
+    end.
 
 get_authority_id() ->
     application:get_env(akm, authority_id).
