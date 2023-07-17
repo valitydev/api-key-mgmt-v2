@@ -62,7 +62,7 @@ revoke_key(Host, Port, PartyId, ApiKeyId) ->
         {<<"content-type">>, <<"application/json; charset=utf-8">>},
         {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>}
     ],
-    Body = #{<<"status">> => <<"Revoked">>},
+    Body = jsx:encode(#{<<"status">> => <<"Revoked">>}),
     ConnPid = connect(Host, Port),
     Answer = put(ConnPid, Path, Headers, Body),
     disconnect(ConnPid),

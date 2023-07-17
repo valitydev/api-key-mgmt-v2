@@ -3,6 +3,14 @@
 -include_lib("common_test/include/ct.hrl").
 -include_lib("bouncer_proto/include/bouncer_ctx_thrift.hrl").
 
+-type config() :: [{atom(), term()}].
+-type test_case_name() :: atom().
+-type group_name() :: atom().
+
+-export_type([config/0]).
+-export_type([test_case_name/0]).
+-export_type([group_name/0]).
+
 %% API
 -export([
     init/2,

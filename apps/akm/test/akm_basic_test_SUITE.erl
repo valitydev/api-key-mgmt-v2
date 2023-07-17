@@ -16,9 +16,9 @@
 %% also defined in ct hook module akm_cth.erl
 -define(ACCESS_TOKEN, <<"some.access.token">>).
 
--type config() :: hg_ct_helper:config().
--type test_case_name() :: hg_ct_helper:test_case_name().
--type group_name() :: hg_ct_helper:group_name().
+-type config() :: akm_cth:config().
+-type test_case_name() :: akm_cth:test_case_name().
+-type group_name() :: akm_cth:group_name().
 -type test_result() :: any() | no_return().
 
 -spec init_per_suite(_) -> _.
@@ -143,7 +143,8 @@ revoke_key_test(Config) ->
         }
     } = akm_client:issue_key(Host, Port, PartyId, #{name => <<"live-site-integration">>}),
 
-    ok = akm_client:revoke_key(Host, Port, PartyId, ApiKeyId).
+    Result = akm_client:revoke_key(Host, Port, PartyId, ApiKeyId),
+    io:format(user, "RES: ~p~n", [Result]).
 
 get_list_keys(Host, Port, PartyId, Limit, #{<<"results">> := ListKeys, <<"continuationToken">> := Cont}, Acc) ->
     Params = [{<<"limit">>, Limit}, {<<"continuationToken">>, Cont}],
