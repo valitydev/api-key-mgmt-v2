@@ -143,8 +143,7 @@ revoke_key_test(Config) ->
         }
     } = akm_client:issue_key(Host, Port, PartyId, #{name => <<"live-site-integration">>}),
 
-    ok = akm_client:revoke_key(Host, Port, PartyId, ApiKeyId)
-.
+    ok = akm_client:revoke_key(Host, Port, PartyId, ApiKeyId).
 
 get_list_keys(Host, Port, PartyId, Limit, #{<<"results">> := ListKeys, <<"continuationToken">> := Cont}, Acc) ->
     Params = [{<<"limit">>, Limit}, {<<"continuationToken">>, Cont}],
