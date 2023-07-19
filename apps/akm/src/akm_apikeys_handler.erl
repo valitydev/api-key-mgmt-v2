@@ -84,7 +84,7 @@ prepare(OperationID = 'GetApiKey', #{'partyId' := PartyID, 'apiKeyId' := ApiKeyI
         {ok, Resolution}
     end,
     Process = fun() ->
-        case akm_apikeys_processing:get_api_key(ApiKeyId) of
+        case akm_apikeys_processing:get_api_key(ApiKeyId, PartyID) of
             {ok, ApiKey} ->
                 akm_handler_utils:reply_ok(200, ApiKey);
             {error, not_found} ->
@@ -148,7 +148,7 @@ prepare(
         {ok, Resolution}
     end,
     Process = fun() ->
-        case akm_apikeys_processing:revoke(ApiKeyId, Token) of
+        case akm_apikeys_processing:revoke(PartyID, ApiKeyId, Token) of
             ok ->
                 akm_handler_utils:reply_ok(204);
             {error, not_found} ->
