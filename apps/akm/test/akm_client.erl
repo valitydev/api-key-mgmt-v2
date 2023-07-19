@@ -6,7 +6,8 @@
     get_key/4,
     list_keys/4,
     list_keys/3,
-    revoke_key/4
+    request_revoke_key/4,
+    revoke_key/3
 ]).
 
 -spec issue_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary(), map()) -> any().
@@ -54,17 +55,29 @@ list_keys(Host, Port, PartyId, QsList) ->
     disconnect(ConnPid),
     parse(Answer).
 
--spec revoke_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary(), binary()) -> any().
-revoke_key(Host, Port, PartyId, ApiKeyId) ->
+-spec request_revoke_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary(), binary()) -> any().
+request_revoke_key(Host, Port, PartyId, ApiKeyId) ->
     Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys/", ApiKeyId/binary, "/status">>,
     Headers = [
-        {<<"X-Request-ID">>, <<"list_keys">>},
+        {<<"X-Request-ID">>, <<"request_revoke">>},
         {<<"content-type">>, <<"application/json; charset=utf-8">>},
         {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>}
     ],
-    Body = jsx:encode(#{<<"status">> => <<"Revoked">>}),
+    Body = jsx:encode(#{<<"status">> => <<"revoked">>}),
     ConnPid = connect(Host, Port),
     Answer = put(ConnPid, Path, Headers, Body),
+    disconnect(ConnPid),
+    parse(Answer).
+
+-spec revoke_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary()) -> any().
+revoke_key(Host, Port, PathWithQuery) ->
+    Headers = [
+        {<<"X-Request-ID">>, <<"revoke_key">>},
+        {<<"content-type">>, <<"application/json; charset=utf-8">>},
+        {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>}
+    ],
+    ConnPid = connect(Host, Port),
+    Answer = get(ConnPid, PathWithQuery, Headers),
     disconnect(ConnPid),
     parse(Answer).
 

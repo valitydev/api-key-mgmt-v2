@@ -90,22 +90,26 @@ request_revoke(Email, PartyID, ApiKeyId, Status) ->
     case get_full_api_key(ApiKeyId) of
         {error, not_found} ->
             {error, not_found};
-        {ok, #{
-            <<"pending_status">> := PreviousStatus,
-            <<"revoke_token">> := PreviousToken
-        }} ->
+        {ok, _ApiKey} ->
             Token = akm_id:generate_snowflake_id(),
-            case
-                epgsql_pool:query(
+            try
+                epgsql_pool:transaction(
                     main_pool,
-                    "UPDATE apikeys SET pending_status = $1, revoke_token = $2 WHERE id = $1",
-                    [Status, Token]
+                    fun(Worker) ->
+                        ok = akm_mailer:send_revoke_mail(Email, PartyID, ApiKeyId, Token),
+                        epgsql_pool:query(
+                            Worker,
+                            "UPDATE apikeys SET pending_status = $1, revoke_token = $2 WHERE id = $3",
+                            [Status, Token, ApiKeyId]
+                        )
+                    end
                 )
             of
                 {ok, 1} ->
-                    send_revoke_email(Email, PartyID, ApiKeyId, Token, PreviousStatus, PreviousToken);
-                {ok, 0} ->
-                    {error, not_found}
+                    {ok, revoke_email_sent}
+            catch
+                _Ex:_Er ->
+                    error(failed_to_send_email)
             end
     end.
 
@@ -116,37 +120,17 @@ revoke(ApiKeyId, RevokeToken) ->
             <<"pending_status">> := PendingStatus,
             <<"revoke_token">> := RevokeToken
         }} ->
-            case
-                epgsql_pool:query(
-                    main_pool,
-                    "UPDATE apikeys SET status = $1, revoke_token = nil WHERE id = $2",
-                    [PendingStatus, ApiKeyId]
-                )
-            of
-                {ok, 1} ->
-                    ok;
-                {ok, 0} ->
-                    {error, not_found}
-            end;
+            {ok, 1} = epgsql_pool:query(
+                main_pool,
+                "UPDATE apikeys SET status = $1, revoke_token = null WHERE id = $2",
+                [PendingStatus, ApiKeyId]
+            ),
+            ok;
         _ ->
             {error, not_found}
     end.
 
 %% Internal functions
-
-send_revoke_email(Email, PartyID, ApiKeyId, Token, PreviousStatus, PreviousToken) ->
-    case akm_mailer:send_revoke_mail(Email, PartyID, ApiKeyId, Token) of
-        ok ->
-            {ok, revoke_email_sent};
-        {error, {failed_to_send, Reason}} ->
-            %% If we can't do it here, there's nothing to be done
-            {ok, 1} = epgsql_pool:query(
-                main_pool,
-                "UPDATE apikeys SET pending_status = $1, revoke_token = $2 WHERE id = $3",
-                [PreviousStatus, PreviousToken, ApiKeyId]
-            ),
-            error({failed_to_send, Reason})
-    end.
 
 get_authority_id() ->
     application:get_env(akm, authority_id).

@@ -99,7 +99,7 @@ prepare_config(State) ->
             }},
 
             {mailer, #{
-                url => "vality.dev",
+                url => "http://vality.dev",
                 from_email => "example@example.com",
                 relay => "smtp4dev",
                 username => "username",

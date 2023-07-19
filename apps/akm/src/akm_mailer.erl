@@ -4,12 +4,14 @@
 -include_lib("bouncer_proto/include/bouncer_ctx_thrift.hrl").
 -include_lib("epgsql/include/epgsql.hrl").
 
+-define(TEMPLATE_FILE, "request_revoke.dtl").
+
 -export([send_revoke_mail/4]).
 
 -spec send_revoke_mail(string(), binary(), binary(), binary()) ->
     ok | {error, {failed_to_send, term()}}.
 send_revoke_mail(Email, PartyID, ApiKeyID, Token) ->
-    Mod = akm_mail_request_revoke,
+    {ok, Mod} = compile_template(),
     {ok, Body} = Mod:render([
         {url, url()},
         {party_id, PartyID},
@@ -17,16 +19,18 @@ send_revoke_mail(Email, PartyID, ApiKeyID, Token) ->
         {revoke_token, Token}
     ]),
     BinaryBody = erlang:iolist_to_binary(Body),
+    Pid = self(),
     case
         gen_smtp_client:send(
             {from_email(), [Email], BinaryBody},
-            [{relay, relay()}, {username, username()}, {password, password()}]
+            [{relay, relay()}, {username, username()}, {password, password()}],
+            fun(Result) -> erlang:send(Pid, {sending_result, Result}) end
         )
     of
         {error, Reason} ->
             {error, {failed_to_send, Reason}};
-        _Receipt ->
-            ok
+        {ok, _SenderPid} ->
+            wait_result()
     end.
 
 url() ->
@@ -55,5 +59,21 @@ get_env() ->
         from_email => "example@example.com",
         relay => "smtp.gmail.com",
         username => "username",
+        %% NOTICE: for gmail need to generate password for application in https://myaccount.google.com/apppasswords
         password => "password"
     }).
+
+compile_template() ->
+    WorkDir = akm_utils:get_env_var("WORK_DIR"),
+    File = filename:join([WorkDir, "priv", "mails", ?TEMPLATE_FILE]),
+    erlydtl:compile(File, akm_mail_request_revoke).
+
+wait_result() ->
+    receive
+        {sending_result, {ok, _Receipt}} ->
+            ok;
+        {sending_result, Error} ->
+            {error, Error}
+    after 3000 ->
+        {error, {failed_to_send, sending_email_timeout}}
+    end.

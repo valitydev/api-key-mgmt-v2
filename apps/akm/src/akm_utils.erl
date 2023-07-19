@@ -29,6 +29,9 @@
 -export([get_unique_id/0]).
 -export([get_random_id/0]).
 
+-export([get_env_var/1]).
+-export([get_env_var/2]).
+
 -type binding_value() :: binary().
 -type url() :: binary().
 -type path() :: binary().
@@ -171,6 +174,17 @@ parse_deadline(DeadlineStr) ->
         fun try_parse_relative/1
     ],
     try_parse_deadline(DeadlineStr, Parsers).
+
+-spec get_env_var(string()) -> term().
+get_env_var(Name) ->
+    case os:getenv(Name) of
+        false -> throw({os_env_required, Name});
+        V -> V
+    end.
+
+-spec get_env_var(string(), term()) -> term().
+get_env_var(Name, Default) ->
+    os:getenv(Name, Default).
 
 %%
 %% Internals

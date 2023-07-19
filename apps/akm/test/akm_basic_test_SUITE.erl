@@ -4,6 +4,8 @@
 -export([
     init_per_suite/1,
     end_per_suite/1,
+    init_per_testcase/2,
+    end_per_testcase/2,
     all/0,
     groups/0
 ]).
@@ -11,6 +13,7 @@
 -export([issue_get_key_success_test/1]).
 -export([get_unknown_key_test/1]).
 -export([list_keys_test/1]).
+-export([revoke_key_w_email_error_test/1]).
 -export([revoke_key_test/1]).
 
 %% also defined in ct hook module akm_cth.erl
@@ -41,9 +44,45 @@ groups() ->
             issue_get_key_success_test,
             get_unknown_key_test,
             list_keys_test,
+            revoke_key_w_email_error_test,
             revoke_key_test
         ]}
     ].
+
+-spec init_per_testcase(test_case_name(), config()) -> config().
+init_per_testcase(revoke_key_w_email_error_test, C) ->
+    meck:expect(
+        gen_smtp_client,
+        send,
+        fun({_, _, _Msg}, _, CallbackFun) ->
+            P = spawn(fun() -> CallbackFun({error, {failed_to_send, sending_email_timeout}}) end),
+            {ok, P}
+        end
+    ),
+    C;
+init_per_testcase(revoke_key_test, C) ->
+    meck:expect(
+        gen_smtp_client,
+        send,
+        fun({_, _, Msg}, _, CallbackFun) ->
+            application:set_env(akm, email_msg, Msg),
+            P = spawn(fun() -> CallbackFun({ok, <<"success">>}) end),
+            {ok, P}
+        end
+    ),
+    C;
+init_per_testcase(_Name, C) ->
+    C.
+
+-spec end_per_testcase(test_case_name(), config()) -> _.
+end_per_testcase(Name, C) when
+    Name =:= revoke_key_w_email_error_test;
+    Name =:= revoke_key_test
+->
+    meck:unload(gen_smtp_client),
+    C;
+end_per_testcase(_Name, C) ->
+    C.
 
 -spec issue_get_key_success_test(config()) -> test_result().
 issue_get_key_success_test(Config) ->
@@ -131,6 +170,20 @@ list_keys_test(Config) ->
         []
     ).
 
+-spec revoke_key_w_email_error_test(config()) -> test_result().
+revoke_key_w_email_error_test(Config) ->
+    Host = akm_ct_utils:lookup_config(akm_host, Config),
+    Port = akm_ct_utils:lookup_config(akm_port, Config),
+    PartyId = <<"revoke_party">>,
+
+    #{
+        <<"ApiKey">> := #{
+            <<"id">> := ApiKeyId
+        }
+    } = akm_client:issue_key(Host, Port, PartyId, #{name => <<"live-site-integration">>}),
+
+    {500, _, _} = akm_client:request_revoke_key(Host, Port, PartyId, ApiKeyId).
+
 -spec revoke_key_test(config()) -> test_result().
 revoke_key_test(Config) ->
     Host = akm_ct_utils:lookup_config(akm_host, Config),
@@ -143,11 +196,39 @@ revoke_key_test(Config) ->
         }
     } = akm_client:issue_key(Host, Port, PartyId, #{name => <<"live-site-integration">>}),
 
-    Result = akm_client:revoke_key(Host, Port, PartyId, ApiKeyId),
-    io:format(user, "RES: ~p~n", [Result]).
+    %% check request with unknown ApiKeyId
+    not_found = akm_client:request_revoke_key(Host, Port, PartyId, <<"BadID">>),
+
+    %% check success request revoke
+    {204, _, _} = akm_client:request_revoke_key(Host, Port, PartyId, ApiKeyId),
+
+    RevokePath = extract_revoke_path(),
+    RevokeWithBadApiKeyId = break_api_key_id(RevokePath, ApiKeyId),
+    RevokeWithBadRevokeToken = break_revoke_token(RevokePath),
+
+    %% check revoke with unknown ApiKey
+    not_found = akm_client:revoke_key(Host, Port, RevokeWithBadApiKeyId),
+
+    %% check revoke with unknown RevokeToken
+    not_found = akm_client:revoke_key(Host, Port, RevokeWithBadRevokeToken),
+
+    %% check success revoke
+    {204, _, _} = akm_client:revoke_key(Host, Port, RevokePath).
 
 get_list_keys(Host, Port, PartyId, Limit, #{<<"results">> := ListKeys, <<"continuationToken">> := Cont}, Acc) ->
     Params = [{<<"limit">>, Limit}, {<<"continuationToken">>, Cont}],
     get_list_keys(Host, Port, PartyId, Limit, akm_client:list_keys(Host, Port, PartyId, Params), Acc ++ ListKeys);
 get_list_keys(_Host, _Port, _PartyId, _Limit, #{<<"results">> := ListKeys}, Acc) ->
     Acc ++ ListKeys.
+
+extract_revoke_path() ->
+    {ok, Msg} = application:get_env(akm, email_msg),
+    [_, Path] = binary:split(Msg, <<".dev">>),
+    Path.
+
+break_api_key_id(Path, ApiKeyId) ->
+    binary:replace(Path, ApiKeyId, <<"BadID">>).
+
+break_revoke_token(Path) ->
+    [Head | _] = binary:split(Path, <<"=">>),
+    <<Head/binary, "=BadRevokeToken">>.
