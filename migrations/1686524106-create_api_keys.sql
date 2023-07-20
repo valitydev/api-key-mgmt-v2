@@ -8,7 +8,6 @@ CREATE TABLE apikeys (
       name              TEXT,
       party_id          TEXT,
       status            apikeys_status,
-      pending_status    apikeys_status,
       revoke_token      TEXT,
       metadata          TEXT,
       created_at        TIMESTAMP WITH TIME ZONE DEFAULT NOW()
