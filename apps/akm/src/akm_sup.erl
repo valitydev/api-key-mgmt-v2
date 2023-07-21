@@ -30,7 +30,7 @@ init([]) ->
     ok = start_epgsql_pooler(),
     {ok, {
         {one_for_all, 0, 1},
-            LogicHandlerSpecs ++ [SwaggerSpec]
+        LogicHandlerSpecs ++ [SwaggerSpec]
     }}.
 
 -spec get_logic_handler_info() -> {akm_swagger_server:logic_handlers(), [supervisor:child_spec()]}.

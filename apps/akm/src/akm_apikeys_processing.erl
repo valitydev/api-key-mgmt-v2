@@ -5,8 +5,10 @@
 -include_lib("epgsql/include/epgsql.hrl").
 
 -export([issue_api_key/3]).
--export([get_api_key/1]).
+-export([get_api_key/2]).
 -export([list_api_keys/4]).
+-export([request_revoke/4]).
+-export([revoke/3]).
 
 -type list_keys_response() :: #{
     results => [map()],
@@ -16,7 +18,7 @@
 -spec issue_api_key(_, _, _) -> _.
 issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
     Metadata0 = maps:get(<<"metadata">>, ApiKey0, #{}),
-%%  REWORK ненормальный ID, переработать
+    %%  REWORK ненормальный ID, переработать
     ID = akm_id:generate_snowflake_id(),
     ContextV1Fragment = bouncer_context_helpers:make_auth_fragment(#{
         method => <<"IssueApiKey">>,
@@ -34,11 +36,11 @@ issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
         {ok, #{token := Token}} ->
             {ok, _, Columns, Rows} = epgsql_pool:query(
                 main_pool,
-                "INSERT INTO apikeys (id, name, party_id, status, metadata)"
-                "VALUES ($1, $2, $3, $4, $5) RETURNING id, name, status, metadata, created_at",
-                [ID, Name, PartyID, Status, jsx:encode(Metadata)]
+                "INSERT INTO apikeys (id, name, party_id, status, pending_status, metadata)"
+                "VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, status, metadata, created_at",
+                [ID, Name, PartyID, Status, Status, jsx:encode(Metadata)]
             ),
-            [ApiKey | _] = to_maps(Columns, Rows),
+            [ApiKey | _] = to_marshalled_maps(Columns, Rows),
             Resp = #{
                 <<"AccessToken">> => marshall_access_token(Token),
                 <<"ApiKey">> => ApiKey
@@ -48,18 +50,18 @@ issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
             {error, already_exists}
     end.
 
--spec get_api_key(binary()) -> {ok, map()} | {error, not_found}.
-get_api_key(ApiKeyId) ->
+-spec get_api_key(binary(), binary()) -> {ok, map()} | {error, not_found}.
+get_api_key(ApiKeyId, PartyId) ->
     Result = epgsql_pool:query(
         main_pool,
-        "SELECT id, name, status, metadata, created_at FROM apikeys where id = $1",
-        [ApiKeyId]
+        "SELECT id, name, status, metadata, created_at FROM apikeys WHERE id = $1 AND party_id = $2",
+        [ApiKeyId, PartyId]
     ),
     case Result of
         {ok, _Columns, []} ->
             {error, not_found};
         {ok, Columns, Rows} ->
-            [ApiKey | _ ] = to_maps(Columns, Rows),
+            [ApiKey | _] = to_marshalled_maps(Columns, Rows),
             {ok, ApiKey}
     end.
 
@@ -74,9 +76,59 @@ list_api_keys(PartyId, Status, Limit, Offset) ->
     case erlang:length(Rows) < Limit of
         true ->
             % last piece of data
-            {ok, #{results => to_maps(Columns, Rows)}};
+            {ok, #{results => to_marshalled_maps(Columns, Rows)}};
         false ->
-            {ok, #{results => to_maps(Columns, Rows), continuationToken => erlang:integer_to_binary(Offset + Limit)}}
+            {ok, #{
+                results => to_marshalled_maps(Columns, Rows),
+                continuationToken => erlang:integer_to_binary(Offset + Limit)
+            }}
+    end.
+
+-spec request_revoke(binary(), binary(), binary(), binary()) ->
+    {ok, revoke_email_sent} | {error, not_found}.
+request_revoke(Email, PartyID, ApiKeyId, Status) ->
+    case get_full_api_key(ApiKeyId, PartyID) of
+        {error, not_found} ->
+            {error, not_found};
+        {ok, _ApiKey} ->
+            Token = akm_id:generate_snowflake_id(),
+            try
+                epgsql_pool:transaction(
+                    main_pool,
+                    fun(Worker) ->
+                        ok = akm_mailer:send_revoke_mail(Email, PartyID, ApiKeyId, Token),
+                        epgsql_pool:query(
+                            Worker,
+                            "UPDATE apikeys SET pending_status = $1, revoke_token = $2 "
+                            "WHERE id = $3 AND party_id = $4",
+                            [Status, Token, ApiKeyId, PartyID]
+                        )
+                    end
+                )
+            of
+                {ok, 1} ->
+                    {ok, revoke_email_sent}
+            catch
+                _Ex:_Er ->
+                    error(failed_to_send_email)
+            end
+    end.
+
+-spec revoke(binary(), binary(), binary()) -> ok | {error, not_found}.
+revoke(PartyId, ApiKeyId, RevokeToken) ->
+    case get_full_api_key(ApiKeyId, PartyId) of
+        {ok, #{
+            <<"pending_status">> := PendingStatus,
+            <<"revoke_token">> := RevokeToken
+        }} ->
+            {ok, 1} = epgsql_pool:query(
+                main_pool,
+                "UPDATE apikeys SET status = $1, revoke_token = null WHERE id = $2 AND party_id = $3",
+                [PendingStatus, ApiKeyId, PartyId]
+            ),
+            ok;
+        _ ->
+            {error, not_found}
     end.
 
 %% Internal functions
@@ -84,38 +136,45 @@ list_api_keys(PartyId, Status, Limit, Offset) ->
 get_authority_id() ->
     application:get_env(akm, authority_id).
 
-%% Marshalling
+get_full_api_key(ApiKeyId, PartyId) ->
+    Result = epgsql_pool:query(
+        main_pool,
+        "SELECT * FROM apikeys WHERE id = $1 AND party_id = $2",
+        [ApiKeyId, PartyId]
+    ),
+    case Result of
+        {ok, _Columns, []} ->
+            {error, not_found};
+        {ok, Columns, Rows} ->
+            [ApiKey | _] = to_maps(Columns, Rows),
+            {ok, ApiKey}
+    end.
 
-marshall_api_key(#{
-        <<"id">> := ID,
-        <<"created_at">> := DateTime,
-        <<"name">> := Name,
-        <<"status">> := Status,
-        <<"metadata">> := Metadata
-    }) ->
-    #{
-        <<"id">> => ID,
-        <<"createdAt">> => DateTime,
-        <<"name">> => Name,
-        <<"status">> => Status,
-        <<"metadata">> => decode_json(Metadata)
-    }.
+%% Encode/Decode
 
-marshall_access_token(Token) ->
-    #{
-        <<"accessToken">> => Token
-    }.
+to_marshalled_maps(Columns, Rows) ->
+    to_maps(Columns, Rows, fun marshall_api_key/1).
 
 to_maps(Columns, Rows) ->
+    to_maps(Columns, Rows, fun(V) -> V end).
+
+to_maps(Columns, Rows, TransformRowFun) ->
     ColNumbers = erlang:length(Columns),
     Seq = lists:seq(1, ColNumbers),
-    lists:map(fun(Row) ->
-        Data = lists:foldl(fun(Pos, Acc) ->
-            #column{name = Field, type = Type} = lists:nth(Pos, Columns),
-            Acc#{Field => convert(Type, erlang:element(Pos, Row))}
-        end, #{}, Seq),
-        marshall_api_key(Data)
-    end, Rows).
+    lists:map(
+        fun(Row) ->
+            Data = lists:foldl(
+                fun(Pos, Acc) ->
+                    #column{name = Field, type = Type} = lists:nth(Pos, Columns),
+                    Acc#{Field => convert(Type, erlang:element(Pos, Row))}
+                end,
+                #{},
+                Seq
+            ),
+            TransformRowFun(Data)
+        end,
+        Rows
+    ).
 
 %% for reference https://github.com/epgsql/epgsql#data-representation
 convert(timestamp, Value) ->
@@ -133,3 +192,25 @@ datetime_to_binary(DateTime) ->
 
 decode_json(null) -> #{};
 decode_json(Value) -> jsx:decode(Value, [return_maps]).
+
+%% Marshalling
+
+marshall_api_key(#{
+    <<"id">> := ID,
+    <<"created_at">> := DateTime,
+    <<"name">> := Name,
+    <<"status">> := Status,
+    <<"metadata">> := Metadata
+}) ->
+    #{
+        <<"id">> => ID,
+        <<"createdAt">> => DateTime,
+        <<"name">> => Name,
+        <<"status">> => Status,
+        <<"metadata">> => decode_json(Metadata)
+    }.
+
+marshall_access_token(Token) ->
+    #{
+        <<"accessToken">> => Token
+    }.

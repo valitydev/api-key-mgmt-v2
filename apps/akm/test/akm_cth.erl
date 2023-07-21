@@ -3,6 +3,14 @@
 -include_lib("common_test/include/ct.hrl").
 -include_lib("bouncer_proto/include/bouncer_ctx_thrift.hrl").
 
+-type config() :: [{atom(), term()}].
+-type test_case_name() :: atom().
+-type group_name() :: atom().
+
+-export_type([config/0]).
+-export_type([test_case_name/0]).
+-export_type([group_name/0]).
+
 %% API
 -export([
     init/2,
@@ -52,12 +60,18 @@ pipe(Funs, State) ->
 
 set_environment(State) ->
     {_, SysConfig} = lookup_key(sys_config, State),
-    lists:foreach(fun({Application, Config}) ->
-        ok = application:load(Application),
-        lists:foreach(fun({Param, Value}) ->
-            application:set_env(Application, Param, Value)
-        end, Config)
-    end, SysConfig),
+    lists:foreach(
+        fun({Application, Config}) ->
+            ok = application:load(Application),
+            lists:foreach(
+                fun({Param, Value}) ->
+                    application:set_env(Application, Param, Value)
+                end,
+                Config
+            )
+        end,
+        SysConfig
+    ),
     State.
 
 prepare_config(State) ->
@@ -82,6 +96,14 @@ prepare_config(State) ->
                     user_id => <<"dev.vality.user.id">>,
                     user_email => <<"dev.vality.user.email">>
                 }
+            }},
+
+            {mailer, #{
+                url => "http://vality.dev",
+                from_email => "example@example.com",
+                relay => "smtp4dev",
+                username => "username",
+                password => "password"
             }}
         ]}
     ],

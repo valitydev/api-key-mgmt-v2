@@ -4,13 +4,13 @@
 CREATE TYPE apikeys_status AS ENUM ('active', 'revoked');
 
 CREATE TABLE apikeys (
-      id            TEXT,
-      name          TEXT,
-      party_id      TEXT,
-      status        apikeys_status,
-      revoke_token  TEXT,
-      metadata      TEXT,
-      created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      id                TEXT,
+      name              TEXT,
+      party_id          TEXT,
+      status            apikeys_status,
+      revoke_token      TEXT,
+      metadata          TEXT,
+      created_at        TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 -- :down
 -- Down migration
