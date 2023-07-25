@@ -9,6 +9,7 @@
 
 -define(TEMPLATE_FILE, "request_revoke.dtl").
 -define(TEMPLATE_DIR, "/opt/api-key-mgmt-v2/templates").
+-define(SECRET_KEY, <<"api-key-mgmt-v2/mail_pass">>).
 
 %% API
 -export([start_link/0]).
@@ -27,6 +28,8 @@ start_link() ->
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
     ok = dbinit(),
+    ok = start_vault_client(),
+    ok = set_mail_pass(),
     {ok, _} = compile_template(),
     {LogicHandlers, LogicHandlerSpecs} = get_logic_handler_info(),
     HealthCheck = enable_health_logging(genlib_app:env(akm, health_check, #{})),
@@ -95,3 +98,28 @@ default_template_file() ->
 
 template_file() ->
     filename:join([?TEMPLATE_DIR, ?TEMPLATE_FILE]).
+
+start_vault_client() ->
+    {ok, TokenPath} = application:get_env(akm, vault_token_path),
+    {ok, Role} = application:get_env(akm, vault_role),
+    {ok, Token} = read_maybe_linked_file(TokenPath),
+    AuthMethod = {kubernetes, unicode:characters_to_binary(Role), Token},
+    canal:auth(AuthMethod).
+
+read_maybe_linked_file(MaybeLinkName) ->
+    case file:read_link(MaybeLinkName) of
+        {error, enoent} = Result ->
+            Result;
+        {error, einval} ->
+            file:read_file(MaybeLinkName);
+        {ok, Filename} ->
+            file:read_file(maybe_expand_relative(MaybeLinkName, Filename))
+    end.
+
+maybe_expand_relative(BaseFilename, Filename) ->
+    filename:absname_join(filename:dirname(BaseFilename), Filename).
+
+set_mail_pass() ->
+    {ok, MailerOpts} = application:get_env(akm, mailer),
+    {ok, #{<<"value">> := MailPass}} = canal:read(?SECRET_KEY),
+    application:set_env(akm, mailer, MailerOpts#{password => unicode:characters_to_list(MailPass)}).

@@ -28,7 +28,8 @@
         snowflake,
         woody_user_identity,
         erlydtl,
-        gen_smtp
+        gen_smtp,
+        canal
     ]},
     {env, []}
 ]}.

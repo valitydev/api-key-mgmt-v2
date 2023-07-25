@@ -78,6 +78,7 @@ prepare_config(State) ->
     AkmAddress = "::",
     AkmPort = get_free_port(),
     PgConfig = get_pg_config(),
+    VaultTokenPath = get_vault_token_path(),
     SysConfig = [
         {akm, [
             {ip, AkmAddress},
@@ -102,9 +103,16 @@ prepare_config(State) ->
                 url => "http://vality.dev",
                 from_email => "example@example.com",
                 relay => "smtp4dev",
-                username => "username",
-                password => "password"
-            }}
+                username => "username"
+            }},
+
+            {vault_token_path, VaultTokenPath},
+            {vault_role, "api-key-mgmt-v2"}
+        ]},
+
+        {canal, [
+            {url, "http://vault:8200"},
+            {engine, kvv2}
         ]}
     ],
     [
@@ -117,6 +125,16 @@ prepare_config(State) ->
 %%
 
 mock_services(State) ->
+    meck:expect(
+        canal,
+        auth,
+        fun(_) -> ok end
+    ),
+    meck:expect(
+        canal,
+        read,
+        fun(_) -> {ok, #{<<"value">> => <<"SomeValue">>}} end
+    ),
     meck:expect(
         akm_auth,
         authorize_operation,
@@ -165,6 +183,10 @@ get_pg_config() ->
         password => get_env_var("POSTGRES_PASSWORD", "postgres"),
         database => get_env_var("POSTGRES_DB", "apikeymgmtv2")
     }.
+
+get_vault_token_path() ->
+    WorkDir = get_env_var("WORK_DIR"),
+    filename:join([WorkDir, "test", "vault-token"]).
 
 get_env_var(Name) ->
     case os:getenv(Name) of
