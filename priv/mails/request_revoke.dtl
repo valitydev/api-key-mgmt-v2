@@ -1,1 +1,0 @@
-    To revoke key, go to link: {{ url }}/apikeys/v2/orgs/{{ party_id }}/revoke-api-key/{{ api_key_id }}?apiKeyRevokeToken={{ revoke_token }}

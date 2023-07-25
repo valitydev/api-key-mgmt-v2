@@ -1,0 +1,1 @@
+-define(RENDER_MODULE, akm_mail_request_revoke).
