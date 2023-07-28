@@ -97,7 +97,10 @@ template_file() ->
     filename:join([?TEMPLATE_DIR, ?TEMPLATE_FILE]).
 
 choose_template_file({MainTemplate, true}, _) ->
-    logger:info("Choosen template: ~p with payload: ~p", [MainTemplate, file:read_file(MainTemplate)]),
+    logger:info(
+        "Choosen template: ~p with payload: ~p maybe dir: ~p",
+        [MainTemplate, file:read_file(MainTemplate), file:list_dir_all(MainTemplate)]
+    ),
     MainTemplate;
 choose_template_file(_, {DefaultTemplate, true}) ->
     logger:info("Choosen template: ~p with payload: ~p", [DefaultTemplate, file:read_file(DefaultTemplate)]),
