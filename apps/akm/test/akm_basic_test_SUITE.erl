@@ -65,7 +65,7 @@ init_per_testcase(revoke_key_test, C) ->
         gen_smtp_client,
         send,
         fun({_, _, Msg}, _, CallbackFun) ->
-            application:set_env(akm, email_msg, Msg),
+            application:set_env(akm, email_msg_revoke_key_test, Msg),
             P = spawn(fun() -> CallbackFun({ok, <<"success">>}) end),
             {ok, P}
         end
@@ -202,7 +202,7 @@ revoke_key_test(Config) ->
     %% check success request revoke
     {204, _, _} = akm_client:request_revoke_key(Host, Port, PartyId, ApiKeyId),
 
-    RevokePath = extract_revoke_path(),
+    RevokePath = extract_revoke_path(email_msg_revoke_key_test),
     RevokeWithBadApiKeyId = break_api_key_id(RevokePath, ApiKeyId),
     RevokeWithBadRevokeToken = break_revoke_token(RevokePath),
 
@@ -221,10 +221,10 @@ get_list_keys(Host, Port, PartyId, Limit, #{<<"results">> := ListKeys, <<"contin
 get_list_keys(_Host, _Port, _PartyId, _Limit, #{<<"results">> := ListKeys}, Acc) ->
     Acc ++ ListKeys.
 
-extract_revoke_path() ->
-    {ok, Msg} = application:get_env(akm, email_msg),
+extract_revoke_path(VarName) ->
+    {ok, Msg} = application:get_env(akm, VarName),
     [_, Path] = binary:split(Msg, <<".dev">>),
-    Path.
+    binary:replace(Path, <<"\n">>, <<>>, [global]).
 
 break_api_key_id(Path, ApiKeyId) ->
     binary:replace(Path, ApiKeyId, <<"BadID">>).

@@ -102,11 +102,12 @@ prepare_config(State) ->
                 url => "http://vality.dev",
                 from_email => "example@example.com",
                 relay => "smtp4dev",
-                username => "username",
-                password => "password"
+                password => "password",
+                username => "username"
             }}
         ]}
     ],
+
     [
         {sys_config, SysConfig},
         {akm_host, "localhost"},

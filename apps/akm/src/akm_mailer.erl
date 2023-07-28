@@ -1,5 +1,6 @@
 -module(akm_mailer).
 
+-include("akm.hrl").
 -include_lib("bouncer_proto/include/bouncer_ctx_v1_thrift.hrl").
 -include_lib("bouncer_proto/include/bouncer_ctx_thrift.hrl").
 -include_lib("epgsql/include/epgsql.hrl").
@@ -11,7 +12,7 @@
 -spec send_revoke_mail(string(), binary(), binary(), binary()) ->
     ok | {error, {failed_to_send, term()}}.
 send_revoke_mail(Email, PartyID, ApiKeyID, Token) ->
-    {ok, Mod} = compile_template(),
+    Mod = ?RENDER_MODULE,
     {ok, Body} = Mod:render([
         {url, url()},
         {party_id, PartyID},
@@ -62,11 +63,6 @@ get_env() ->
         %% NOTICE: for gmail need to generate password for application in https://myaccount.google.com/apppasswords
         password => "password"
     }).
-
-compile_template() ->
-    WorkDir = akm_utils:get_env_var("WORK_DIR"),
-    File = filename:join([WorkDir, "priv", "mails", ?TEMPLATE_FILE]),
-    erlydtl:compile(File, akm_mail_request_revoke).
 
 wait_result() ->
     receive
