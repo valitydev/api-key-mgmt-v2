@@ -81,11 +81,11 @@ dbinit() ->
 
 compile_template() ->
     TemplateFile = template_file(),
-    File =
-        case filelib:is_file(TemplateFile) of
-            true -> TemplateFile;
-            false -> default_template_file()
-        end,
+    DefaultTemplate = default_template_file(),
+    File = choose_template_file(
+        {TemplateFile, filelib:is_file(TemplateFile)},
+        {DefaultTemplate, filelib:is_file(DefaultTemplate)}
+    ),
     AkmEbinDir = code:lib_dir(akm, ebin),
     erlydtl:compile({file, File}, ?RENDER_MODULE, [{out_dir, AkmEbinDir}]).
 
@@ -95,3 +95,13 @@ default_template_file() ->
 
 template_file() ->
     filename:join([?TEMPLATE_DIR, ?TEMPLATE_FILE]).
+
+choose_template_file({MainTemplate, true}, _) ->
+    logger:info("Choosen template: ~p", [MainTemplate]),
+    MainTemplate;
+choose_template_file(_, {DefaultTemplate, true}) ->
+    logger:info("Choosen template: ~p", [DefaultTemplate]),
+    DefaultTemplate;
+choose_template_file({MainTemplate, _}, {DefaultTemplate, _}) ->
+    logger:error("Template file not found. Candidates: ~p ~p", [MainTemplate, DefaultTemplate]),
+    error(template_not_found).
