@@ -19,10 +19,11 @@
 
 -type prototype_operation() :: #{
     id => operation_id(),
-    party => maybe_undefined(entity_id())
+    party => maybe_undefined(entity())
 }.
 
 -type entity_id() :: binary().
+-type entity() :: #{id => entity_id()}.
 -type maybe_undefined(Type) :: Type | undefined.
 
 -export_type([prototypes/0]).

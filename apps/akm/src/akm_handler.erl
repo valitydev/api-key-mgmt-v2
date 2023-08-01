@@ -60,7 +60,7 @@ authorize_api_key(OperationID, ApiKey, _Context, _HandlerOpts) ->
     %% request validation checks before this stage.
     %% But since a decent chunk of authorization logic is already defined in the handler function
     %% it is probably easier to move it there in its entirety.
-    ok = scoper:add_scope('swag.server', #{api => wallet, operation_id => OperationID}),
+    ok = scoper:add_scope('swag.server', #{api => apikeymgmt, operation_id => OperationID}),
     case akm_auth:preauthorize_api_key(ApiKey) of
         {ok, Context} ->
             {true, Context};
