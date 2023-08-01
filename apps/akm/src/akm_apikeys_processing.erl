@@ -134,7 +134,7 @@ revoke(PartyId, ApiKeyId, RevokeToken) ->
 %% Internal functions
 
 get_authority_id() ->
-    application:get_env(akm, authority_id).
+    application:get_env(akm, authority_id, undefined).
 
 get_full_api_key(ApiKeyId, PartyId) ->
     Result = epgsql_pool:query(
