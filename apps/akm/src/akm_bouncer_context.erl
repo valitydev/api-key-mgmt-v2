@@ -19,11 +19,10 @@
 
 -type prototype_operation() :: #{
     id => operation_id(),
-    party => maybe_undefined(entity())
+    party => maybe_undefined(entity_id())
 }.
 
 -type entity_id() :: binary().
--type entity() :: #{id => entity_id()}.
 -type maybe_undefined(Type) :: Type | undefined.
 
 -export_type([prototypes/0]).
@@ -54,7 +53,7 @@ build(operation, Params = #{id := OperationID}, Acc) ->
         apikeymgmt = #ctx_v1_ContextApiKeyMgmt{
             op = #ctx_v1_ApiKeyMgmtOperation{
                 id = operation_id_to_binary(OperationID),
-                party = maybe_entity(party_id, Params),
+                party = maybe_entity(party, Params),
                 api_key = maybe(api_key, Params)
             }
         }
