@@ -19,7 +19,8 @@
 
 -type prototype_operation() :: #{
     id => operation_id(),
-    party => maybe_undefined(entity_id())
+    party => maybe_undefined(entity_id()),
+    api_key => maybe_undefined(entity_id())
 }.
 
 -type entity_id() :: binary().
@@ -54,15 +55,15 @@ build(operation, Params = #{id := OperationID}, Acc) ->
             op = #ctx_v1_ApiKeyMgmtOperation{
                 id = operation_id_to_binary(OperationID),
                 party = maybe_entity(party, Params),
-                api_key = maybe(api_key, Params)
+                api_key = maybe_entity(api_key, Params)
             }
         }
     }.
 
 %%
 
-maybe(Name, Params) ->
-    maps:get(Name, Params, undefined).
+%maybe(Name, Params) ->
+%    maps:get(Name, Params, undefined).
 
 maybe_entity(Name, Params) ->
     case maps:get(Name, Params, undefined) of
