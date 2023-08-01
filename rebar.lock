@@ -90,7 +90,7 @@
  {<<"herd">>,
   {git,"https://github.com/wgnet/herd.git",
        {ref,"934847589dcf5a6d2b02a1f546ffe91c04066f17"}},
-  1},
+  0},
  {<<"identdocstore_proto">>,
   {git,"https://github.com/valitydev/identdocstore-proto.git",
        {ref,"0ab676da2bb23eb04c42e02325c40c413d74856e"}},
