@@ -5,10 +5,10 @@
 -include_lib("epgsql/include/epgsql.hrl").
 
 -export([issue_api_key/3]).
--export([get_api_key/2]).
+-export([get_api_key/1]).
 -export([list_api_keys/4]).
 -export([request_revoke/4]).
--export([revoke/3]).
+-export([revoke/2]).
 
 -type list_keys_response() :: #{
     results => [map()],
@@ -50,12 +50,12 @@ issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
             {error, already_exists}
     end.
 
--spec get_api_key(binary(), binary()) -> {ok, map()} | {error, not_found}.
-get_api_key(ApiKeyId, PartyId) ->
+-spec get_api_key(binary()) -> {ok, map()} | {error, not_found}.
+get_api_key(ApiKeyId) ->
     Result = epgsql_pool:query(
         main_pool,
-        "SELECT id, name, status, metadata, created_at FROM apikeys WHERE id = $1 AND party_id = $2",
-        [ApiKeyId, PartyId]
+        "SELECT id, name, status, metadata, created_at FROM apikeys WHERE id = $1",
+        [ApiKeyId]
     ),
     case Result of
         {ok, _Columns, []} ->
@@ -87,7 +87,7 @@ list_api_keys(PartyId, Status, Limit, Offset) ->
 -spec request_revoke(binary(), binary(), binary(), binary()) ->
     {ok, revoke_email_sent} | {error, not_found}.
 request_revoke(Email, PartyID, ApiKeyId, Status) ->
-    case get_full_api_key(ApiKeyId, PartyID) of
+    case get_full_api_key(ApiKeyId) of
         {error, not_found} ->
             {error, not_found};
         {ok, _ApiKey} ->
@@ -100,8 +100,8 @@ request_revoke(Email, PartyID, ApiKeyId, Status) ->
                         epgsql_pool:query(
                             Worker,
                             "UPDATE apikeys SET pending_status = $1, revoke_token = $2 "
-                            "WHERE id = $3 AND party_id = $4",
-                            [Status, Token, ApiKeyId, PartyID]
+                            "WHERE id = $3",
+                            [Status, Token, ApiKeyId]
                         )
                     end
                 )
@@ -114,17 +114,17 @@ request_revoke(Email, PartyID, ApiKeyId, Status) ->
             end
     end.
 
--spec revoke(binary(), binary(), binary()) -> ok | {error, not_found}.
-revoke(PartyId, ApiKeyId, RevokeToken) ->
-    case get_full_api_key(ApiKeyId, PartyId) of
+-spec revoke(binary(), binary()) -> ok | {error, not_found}.
+revoke(ApiKeyId, RevokeToken) ->
+    case get_full_api_key(ApiKeyId) of
         {ok, #{
             <<"pending_status">> := PendingStatus,
             <<"revoke_token">> := RevokeToken
         }} ->
             {ok, 1} = epgsql_pool:query(
                 main_pool,
-                "UPDATE apikeys SET status = $1, revoke_token = null WHERE id = $2 AND party_id = $3",
-                [PendingStatus, ApiKeyId, PartyId]
+                "UPDATE apikeys SET status = $1, revoke_token = null WHERE id = $2",
+                [PendingStatus, ApiKeyId]
             ),
             ok;
         _ ->
@@ -136,11 +136,11 @@ revoke(PartyId, ApiKeyId, RevokeToken) ->
 get_authority_id() ->
     application:get_env(akm, authority_id, undefined).
 
-get_full_api_key(ApiKeyId, PartyId) ->
+get_full_api_key(ApiKeyId) ->
     Result = epgsql_pool:query(
         main_pool,
-        "SELECT * FROM apikeys WHERE id = $1 AND party_id = $2",
-        [ApiKeyId, PartyId]
+        "SELECT * FROM apikeys WHERE id = $1",
+        [ApiKeyId]
     ),
     case Result of
         {ok, _Columns, []} ->

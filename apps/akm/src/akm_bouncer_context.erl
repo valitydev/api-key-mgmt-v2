@@ -62,10 +62,14 @@ build(operation, Params = #{id := OperationID}, Acc) ->
 
 %%
 
-%maybe(Name, Params) ->
-%    maps:get(Name, Params, undefined).
-
-api_key_entity(#{api_key := ApiKeyId, party := PartyId}) ->
+api_key_entity(
+    #{
+        api_key := #{
+            <<"id">> := ApiKeyId,
+            <<"metadata">> := #{<<"party.id">> := PartyId}
+        }
+    }
+) ->
     #base_Entity{id = ApiKeyId, party = PartyId};
 api_key_entity(_) ->
     undefined.

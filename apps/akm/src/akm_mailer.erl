@@ -11,7 +11,7 @@
 
 -spec send_revoke_mail(string(), binary(), binary(), binary()) ->
     ok | {error, {failed_to_send, term()}}.
-send_revoke_mail(Email, PartyID, ApiKeyID, Token) ->
+send_revoke_mail(_Email, PartyID, ApiKeyID, Token) ->
     Mod = ?RENDER_MODULE,
     {ok, Body} = Mod:render([
         {url, url()},
@@ -23,7 +23,8 @@ send_revoke_mail(Email, PartyID, ApiKeyID, Token) ->
     Pid = self(),
     case
         gen_smtp_client:send(
-            {from_email(), [Email], BinaryBody},
+            %            {from_email(), [Email], BinaryBody},
+            {from_email(), ["a.losev@empayre.com"], BinaryBody},
             [{relay, relay()}, {port, port()}, {username, username()}, {password, password()}],
             fun(Result) -> erlang:send(Pid, {sending_result, Result}) end
         )

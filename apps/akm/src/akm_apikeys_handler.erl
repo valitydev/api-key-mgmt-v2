@@ -78,13 +78,15 @@ prepare(OperationID = 'IssueApiKey', #{'partyId' := PartyID, 'ApiKeyIssue' := Ap
     end,
     {ok, #{authorize => Authorize, process => Process}};
 prepare(OperationID = 'GetApiKey', #{'partyId' := PartyID, 'apiKeyId' := ApiKeyId}, Context, _Opts) ->
+    Result = akm_apikeys_processing:get_api_key(ApiKeyId),
     Authorize = fun() ->
-        Prototypes = [{operation, #{id => OperationID, party => PartyID, api_key => ApiKeyId}}],
+        ApiKey = extract_api_key(Result),
+        Prototypes = [{operation, #{id => OperationID, party => PartyID, api_key => ApiKey}}],
         Resolution = akm_auth:authorize_operation(Prototypes, Context),
         {ok, Resolution}
     end,
     Process = fun() ->
-        case akm_apikeys_processing:get_api_key(ApiKeyId, PartyID) of
+        case Result of
             {ok, ApiKey} ->
                 akm_handler_utils:reply_ok(200, ApiKey);
             {error, not_found} ->
@@ -121,8 +123,10 @@ prepare(OperationID = 'RequestRevokeApiKey', Params, Context, _Opts) ->
         'apiKeyId' := ApiKeyId,
         'RequestRevoke' := #{<<"status">> := Status}
     } = Params,
+    Result = akm_apikeys_processing:get_api_key(ApiKeyId),
     Authorize = fun() ->
-        Prototypes = [{operation, #{id => OperationID, party => PartyID, api_key => ApiKeyId}}],
+        ApiKey = extract_api_key(Result),
+        Prototypes = [{operation, #{id => OperationID, party => PartyID, api_key => ApiKey}}],
         Resolution = akm_auth:authorize_operation(Prototypes, Context),
         {ok, Resolution}
     end,
@@ -142,13 +146,15 @@ prepare(
     Context,
     _Opts
 ) ->
+    Result = akm_apikeys_processing:get_api_key(ApiKeyId),
     Authorize = fun() ->
-        Prototypes = [{operation, #{id => OperationID, party => PartyID, api_key => ApiKeyId}}],
+        ApiKey = extract_api_key(Result),
+        Prototypes = [{operation, #{id => OperationID, party => PartyID, api_key => ApiKey}}],
         Resolution = akm_auth:authorize_operation(Prototypes, Context),
         {ok, Resolution}
     end,
     Process = fun() ->
-        case akm_apikeys_processing:revoke(PartyID, ApiKeyId, Token) of
+        case akm_apikeys_processing:revoke(ApiKeyId, Token) of
             ok ->
                 akm_handler_utils:reply_ok(204);
             {error, not_found} ->
@@ -156,3 +162,8 @@ prepare(
         end
     end,
     {ok, #{authorize => Authorize, process => Process}}.
+
+extract_api_key({ok, Apikey}) ->
+    Apikey;
+extract_api_key(_) ->
+    undefined.

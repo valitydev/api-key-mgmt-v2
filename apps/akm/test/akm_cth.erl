@@ -120,8 +120,8 @@ prepare_config(State) ->
 
 mock_services(State) ->
     meck:expect(
-        akm_auth,
-        authorize_operation,
+        akm_bouncer,
+        judge,
         fun(_, _) -> allowed end
     ),
     meck:expect(
