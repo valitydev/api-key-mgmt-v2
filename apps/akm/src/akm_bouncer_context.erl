@@ -54,8 +54,8 @@ build(operation, Params = #{id := OperationID}, Acc) ->
         apikeymgmt = #ctx_v1_ContextApiKeyMgmt{
             op = #ctx_v1_ApiKeyMgmtOperation{
                 id = operation_id_to_binary(OperationID),
-                party = maybe_entity(party, Params),
-                api_key = maybe_entity(api_key, Params)
+                party = party_entity(Params),
+                api_key = api_key_entity(Params)
             }
         }
     }.
@@ -65,13 +65,15 @@ build(operation, Params = #{id := OperationID}, Acc) ->
 %maybe(Name, Params) ->
 %    maps:get(Name, Params, undefined).
 
-maybe_entity(Name, Params) ->
-    case maps:get(Name, Params, undefined) of
-        undefined ->
-            undefined;
-        Value ->
-            #base_Entity{id = Value}
-    end.
+api_key_entity(#{api_key := ApiKeyId, party := PartyId}) ->
+    #base_Entity{id = ApiKeyId, party = PartyId};
+api_key_entity(_) ->
+    undefined.
+
+party_entity(#{party := PartyId}) ->
+    #base_Entity{id = PartyId};
+party_entity(_) ->
+    undefined.
 
 operation_id_to_binary(V) ->
     erlang:atom_to_binary(V, utf8).
