@@ -24,7 +24,7 @@ send_revoke_mail(Email, PartyID, ApiKeyID, Token) ->
     case
         gen_smtp_client:send(
             {from_email(), [Email], BinaryBody},
-            [{relay, relay()}, {username, username()}, {password, password()}],
+            [{relay, relay()}, {port, port()}, {username, username()}, {password, password()}],
             fun(Result) -> erlang:send(Pid, {sending_result, Result}) end
         )
     of
@@ -54,9 +54,14 @@ password() ->
     #{password := Password} = get_env(),
     Password.
 
+port() ->
+    #{port := Port} = get_env(),
+    Port.
+
 get_env() ->
     genlib_app:env(akm, mailer, #{
-        url => "vality.dev",
+        url => "https://vality.dev",
+        port => 465,
         from_email => "example@example.com",
         relay => "smtp.gmail.com",
         username => "username",
