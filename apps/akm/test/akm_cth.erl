@@ -100,6 +100,7 @@ prepare_config(State) ->
 
             {mailer, #{
                 url => "http://vality.dev",
+                port => 465,
                 from_email => "example@example.com",
                 relay => "smtp4dev",
                 password => "password",
