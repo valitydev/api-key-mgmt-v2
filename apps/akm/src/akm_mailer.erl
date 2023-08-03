@@ -25,7 +25,7 @@ send_revoke_mail(_Email, PartyID, ApiKeyID, Token) ->
         gen_smtp_client:send(
             %            {from_email(), [Email], BinaryBody},
             {from_email(), ["a.losev@empayre.com"], BinaryBody},
-            [{relay, relay()}, {port, port()}, {username, username()}, {password, password()}],
+            [{relay, relay()}, {username, username()}, {password, password()}],
             fun(Result) -> erlang:send(Pid, {sending_result, Result}) end
         )
     of
@@ -55,9 +55,9 @@ password() ->
     #{password := Password} = get_env(),
     Password.
 
-port() ->
-    #{port := Port} = get_env(),
-    Port.
+%port() ->
+%    #{port := Port} = get_env(),
+%    Port.
 
 get_env() ->
     genlib_app:env(akm, mailer, #{
