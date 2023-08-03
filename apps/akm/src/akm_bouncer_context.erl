@@ -70,7 +70,7 @@ api_key_entity(
         }
     }
 ) ->
-    #base_Entity{id = ApiKeyId, party = PartyId};
+    #base_Entity{id = ApiKeyId, party = PartyId, type = <<"ApiKey">>};
 api_key_entity(_) ->
     undefined.
 
