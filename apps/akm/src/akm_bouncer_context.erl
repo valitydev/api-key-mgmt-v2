@@ -50,14 +50,17 @@ build(Prototypes, {Acc0, External}) ->
     {Acc1, External}.
 
 build(operation, Params = #{id := OperationID}, Acc) ->
+    PartyEntity = party_entity(Params),
+    ApiKeyEntity = api_key_entity(Params),
     Acc#ctx_v1_ContextFragment{
         apikeymgmt = #ctx_v1_ContextApiKeyMgmt{
             op = #ctx_v1_ApiKeyMgmtOperation{
                 id = operation_id_to_binary(OperationID),
-                party = party_entity(Params),
-                api_key = api_key_entity(Params)
+                party = PartyEntity,
+                api_key = ApiKeyEntity
             }
-        }
+        },
+        entities = ordsets:from_list([PartyEntity, ApiKeyEntity])
     }.
 
 %%

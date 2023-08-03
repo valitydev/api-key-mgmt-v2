@@ -95,7 +95,6 @@ authorize_operation(Prototypes, Context) ->
         WoodyContext
     ),
     Fragments1 = akm_bouncer_context:build(Prototypes, Fragments),
-    logger:info("Start judgement with fragents: ~p", [Fragments1]),
     akm_bouncer:judge(Fragments1, WoodyContext).
 
 %%
