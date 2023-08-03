@@ -55,6 +55,9 @@ password() ->
     #{password := Password} = get_env(),
     Password.
 
+timeout() ->
+    maps:get(timeout, get_env(), 3000).
+
 %port() ->
 %    #{port := Port} = get_env(),
 %    Port.
@@ -62,7 +65,7 @@ password() ->
 get_env() ->
     genlib_app:env(akm, mailer, #{
         url => "https://vality.dev",
-        port => 465,
+        port => 587,
         from_email => "example@example.com",
         relay => "smtp.gmail.com",
         username => "username",
@@ -71,11 +74,12 @@ get_env() ->
     }).
 
 wait_result() ->
+    Timeout = timeout(),
     receive
         {sending_result, {ok, _Receipt}} ->
             ok;
         {sending_result, Error} ->
             {error, Error}
-    after 3000 ->
+    after Timeout ->
         {error, {failed_to_send, sending_email_timeout}}
     end.
