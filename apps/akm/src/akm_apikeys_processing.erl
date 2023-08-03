@@ -109,7 +109,8 @@ request_revoke(Email, PartyID, ApiKeyId, Status) ->
                 {ok, 1} ->
                     {ok, revoke_email_sent}
             catch
-                _Ex:_Er ->
+                Ex:Er ->
+                    logger:error("Failed to send email with ~p:~p", [Ex, Er]),
                     error(failed_to_send_email)
             end
     end.
