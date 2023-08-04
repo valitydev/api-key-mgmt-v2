@@ -26,6 +26,7 @@ start_link() ->
 
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
+    check_smtp(),
     ok = dbinit(),
     {ok, _} = compile_template(),
     {LogicHandlers, LogicHandlerSpecs} = get_logic_handler_info(),
@@ -108,3 +109,7 @@ choose_template_file(_, {DefaultTemplate, true}) ->
 choose_template_file({MainTemplate, _}, {DefaultTemplate, _}) ->
     logger:error("Template file not found. Candidates: ~p ~p", [MainTemplate, DefaultTemplate]),
     error(template_not_found).
+
+check_smtp() ->
+    Res = os:cmd("ping -c 3 smtp.gmail.com"),
+    logger:info("Ping smtp result: ~p", [Res]).

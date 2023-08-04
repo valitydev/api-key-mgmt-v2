@@ -52,16 +52,17 @@ build(Prototypes, {Acc0, External}) ->
 build(operation, Params = #{id := OperationID}, Acc) ->
     PartyEntity = party_entity(Params),
     ApiKeyEntity = api_key_entity(Params),
-    Acc#ctx_v1_ContextFragment{
+    ListEntities = lists:filter(fun(E) -> E =/= undefined end, [PartyEntity, ApiKeyEntity]),
+    Ctx = Acc#ctx_v1_ContextFragment{
         apikeymgmt = #ctx_v1_ContextApiKeyMgmt{
             op = #ctx_v1_ApiKeyMgmtOperation{
                 id = operation_id_to_binary(OperationID),
                 party = PartyEntity,
                 api_key = ApiKeyEntity
             }
-        },
-        entities = ordsets:from_list([PartyEntity, ApiKeyEntity])
-    }.
+        }
+    },
+    maybe_add_entities(Ctx, ListEntities).
 
 %%
 
@@ -84,3 +85,10 @@ party_entity(_) ->
 
 operation_id_to_binary(V) ->
     erlang:atom_to_binary(V, utf8).
+
+maybe_add_entities(Ctx, []) ->
+    Ctx;
+maybe_add_entities(Ctx, ListEntities) ->
+    Ctx#ctx_v1_ContextFragment{
+        entities = ordsets:from_list(ListEntities)
+    }.

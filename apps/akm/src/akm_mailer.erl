@@ -23,9 +23,15 @@ send_revoke_mail(_Email, PartyID, ApiKeyID, Token) ->
     Pid = self(),
     case
         gen_smtp_client:send(
-            %            {from_email(), [Email], BinaryBody},
+            % {from_email(), [Email], BinaryBody},
             {from_email(), ["a.losev@empayre.com"], BinaryBody},
-            [{relay, relay()}, {username, username()}, {password, password()}],
+            [
+                {ssl, true},
+                {relay, relay()},
+                {port, port()},
+                {username, username()},
+                {password, password()}
+            ],
             fun(Result) -> erlang:send(Pid, {sending_result, Result}) end
         )
     of
@@ -58,9 +64,9 @@ password() ->
 timeout() ->
     maps:get(timeout, get_env(), 3000).
 
-%port() ->
-%    #{port := Port} = get_env(),
-%    Port.
+port() ->
+    #{port := Port} = get_env(),
+    to_int(Port).
 
 get_env() ->
     genlib_app:env(akm, mailer, #{
@@ -83,3 +89,7 @@ wait_result() ->
     after Timeout ->
         {error, {failed_to_send, sending_email_timeout}}
     end.
+
+to_int(Value) when is_integer(Value) -> Value;
+to_int(Value) when is_binary(Value) -> erlang:binary_to_integer(Value);
+to_int(Value) when is_list(Value) -> erlang:list_to_integer(Value).
