@@ -153,8 +153,9 @@ attach_deadline(undefined, Context) ->
 attach_deadline(Deadline, Context) ->
     woody_context:set_deadline(Deadline, Context).
 
-do_authorize_api_key('RevokeApiKey', SwagContext, _WoodyContext) ->
-    SwagContext;
+do_authorize_api_key('RevokeApiKey', #{cowboy_req := Req} = SwagContext, _WoodyContext) ->
+    PartyId = cowboy_req:binding(partyId, Req),
+    SwagContext#{auth_context => akm_auth:make_auth_context(PartyId)};
 do_authorize_api_key(_OperationID, SwagContext = #{auth_context := PreAuthContext}, WoodyContext) ->
     case akm_auth:authorize_api_key(PreAuthContext, make_token_context(SwagContext), WoodyContext) of
         {ok, AuthContext} ->
