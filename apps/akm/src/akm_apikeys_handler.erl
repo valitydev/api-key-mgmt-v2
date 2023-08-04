@@ -141,17 +141,18 @@ prepare(OperationID = 'RequestRevokeApiKey', Params, Context, _Opts) ->
     end,
     {ok, #{authorize => Authorize, process => Process}};
 prepare(
-    OperationID = 'RevokeApiKey',
-    #{'partyId' := PartyID, 'apiKeyId' := ApiKeyId, 'apiKeyRevokeToken' := Token},
-    Context,
+    _OperationID = 'RevokeApiKey',
+    #{'partyId' := _PartyID, 'apiKeyId' := ApiKeyId, 'apiKeyRevokeToken' := Token},
+    _Context,
     _Opts
 ) ->
-    Result = akm_apikeys_processing:get_api_key(ApiKeyId),
+    %% Result = akm_apikeys_processing:get_api_key(ApiKeyId),
     Authorize = fun() ->
-        ApiKey = extract_api_key(Result),
-        Prototypes = [{operation, #{id => OperationID, party => PartyID, api_key => ApiKey}}],
-        Resolution = akm_auth:authorize_operation(Prototypes, Context),
-        {ok, Resolution}
+        %% ApiKey = extract_api_key(Result),
+        %% Prototypes = [{operation, #{id => OperationID, party => PartyID, api_key => ApiKey}}],
+        %% Resolution = akm_auth:authorize_operation(Prototypes, Context),
+        %% {ok, Resolution}
+        {ok, allowed}
     end,
     Process = fun() ->
         case akm_apikeys_processing:revoke(ApiKeyId, Token) of

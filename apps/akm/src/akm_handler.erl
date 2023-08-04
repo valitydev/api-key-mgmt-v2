@@ -93,7 +93,7 @@ handle_request(OperationID, Req, SwagContext, Opts) ->
 process_request(OperationID, Req, SwagContext0, Opts, WoodyContext0) ->
     _ = logger:info("Processing request ~p", [OperationID]),
     try
-        SwagContext = do_authorize_api_key(SwagContext0, WoodyContext0),
+        SwagContext = do_authorize_api_key(OperationID, SwagContext0, WoodyContext0),
         WoodyContext = put_user_identity(WoodyContext0, get_auth_context(SwagContext)),
         Context = create_handler_context(OperationID, SwagContext, WoodyContext),
         ok = set_context_meta(Context),
@@ -117,7 +117,9 @@ process_request(OperationID, Req, SwagContext0, Opts, WoodyContext0) ->
     end.
 
 -spec create_woody_context(akm_apikeys_handler:request_data()) -> woody_context:ctx().
-create_woody_context(#{'X-Request-ID' := RequestID}) ->
+create_woody_context(RequestData) ->
+    %% use dynamic request_id if not presented
+    RequestID = maps:get('X-Request-ID', RequestData, new_request_id()),
     RpcID = #{trace_id := TraceID} = woody_context:new_rpc_id(genlib:to_binary(RequestID)),
     ok = scoper:add_meta(#{request_id => RequestID, trace_id => TraceID}),
     woody_context:new(RpcID, undefined, akm_woody_client:get_service_deadline(akm)).
@@ -151,7 +153,9 @@ attach_deadline(undefined, Context) ->
 attach_deadline(Deadline, Context) ->
     woody_context:set_deadline(Deadline, Context).
 
-do_authorize_api_key(SwagContext = #{auth_context := PreAuthContext}, WoodyContext) ->
+do_authorize_api_key('RevokeApiKey', SwagContext, _WoodyContext) ->
+    SwagContext;
+do_authorize_api_key(_OperationID, SwagContext = #{auth_context := PreAuthContext}, WoodyContext) ->
     case akm_auth:authorize_api_key(PreAuthContext, make_token_context(SwagContext), WoodyContext) of
         {ok, AuthContext} ->
             SwagContext#{auth_context => AuthContext};
@@ -188,3 +192,6 @@ process_woody_error(_Source, resource_unavailable, _Details) ->
     akm_handler_utils:reply_error(504);
 process_woody_error(_Source, result_unknown, _Details) ->
     akm_handler_utils:reply_error(504).
+
+new_request_id() ->
+    base64:encode(crypto:strong_rand_bytes(24)).
