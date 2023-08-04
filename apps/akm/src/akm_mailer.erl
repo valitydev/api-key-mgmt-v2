@@ -19,7 +19,8 @@ send_revoke_mail(_Email, PartyID, ApiKeyID, Token) ->
         {api_key_id, ApiKeyID},
         {revoke_token, Token}
     ]),
-    BinaryBody = erlang:iolist_to_binary(Body),
+    BinaryBody = unicode:characters_to_binary(Body),
+    logger:info("Try send email with body: ~p", [BinaryBody]),
     Pid = self(),
     case
         gen_smtp_client:send(
