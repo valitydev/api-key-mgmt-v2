@@ -11,7 +11,7 @@
 
 -spec send_revoke_mail(string(), binary(), binary(), binary()) ->
     ok | {error, {failed_to_send, term()}}.
-send_revoke_mail(_Email, PartyID, ApiKeyID, Token) ->
+send_revoke_mail(Email, PartyID, ApiKeyID, Token) ->
     Mod = ?RENDER_MODULE,
     {ok, Body} = Mod:render([
         {url, url()},
@@ -24,8 +24,7 @@ send_revoke_mail(_Email, PartyID, ApiKeyID, Token) ->
     Pid = self(),
     case
         gen_smtp_client:send(
-            % {from_email(), [Email], BinaryBody},
-            {from_email(), ["a.losev@empayre.com"], BinaryBody},
+            {from_email(), [Email], BinaryBody},
             [
                 {ssl, true},
                 {relay, relay()},
@@ -72,7 +71,7 @@ port() ->
 get_env() ->
     genlib_app:env(akm, mailer, #{
         url => "https://vality.dev",
-        port => 587,
+        port => 465,
         from_email => "example@example.com",
         relay => "smtp.gmail.com",
         username => "username",

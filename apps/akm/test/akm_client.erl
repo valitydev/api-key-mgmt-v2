@@ -71,11 +71,7 @@ request_revoke_key(Host, Port, PartyId, ApiKeyId) ->
 
 -spec revoke_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary()) -> any().
 revoke_key(Host, Port, PathWithQuery) ->
-    Headers = [
-        %% {<<"X-Request-ID">>, <<"revoke_key">>},
-        %% {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>},
-        %% {<<"content-type">>, <<"application/json; charset=utf-8">>}
-    ],
+    Headers = [],
     ConnPid = connect(Host, Port),
     Answer = get(ConnPid, PathWithQuery, Headers),
     disconnect(ConnPid),
