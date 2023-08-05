@@ -77,7 +77,7 @@ authorize_api_key(OperationID, ApiKey, _Context, _HandlerOpts) ->
 ) ->
     akm_apikeys_handler:request_result().
 handle_request(OperationID, Req, SwagContext, Opts) ->
-    #{'X-Request-Deadline' := Header} = Req,
+    Header = maps:get('X-Request-Deadline', Req, undefined),
     case akm_utils:parse_deadline(Header) of
         {ok, Deadline} ->
             WoodyContext = attach_deadline(Deadline, create_woody_context(Req)),
