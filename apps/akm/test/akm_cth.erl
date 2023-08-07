@@ -100,6 +100,7 @@ prepare_config(State) ->
 
             {mailer, #{
                 url => "http://vality.dev",
+                port => 465,
                 from_email => "example@example.com",
                 relay => "smtp4dev",
                 password => "password",
@@ -119,8 +120,8 @@ prepare_config(State) ->
 
 mock_services(State) ->
     meck:expect(
-        akm_auth,
-        authorize_operation,
+        akm_bouncer,
+        judge,
         fun(_, _) -> allowed end
     ),
     meck:expect(

@@ -19,12 +19,19 @@ send_revoke_mail(Email, PartyID, ApiKeyID, Token) ->
         {api_key_id, ApiKeyID},
         {revoke_token, Token}
     ]),
-    BinaryBody = erlang:iolist_to_binary(Body),
+    BinaryBody = unicode:characters_to_binary(Body),
+    logger:info("Try send email with body: ~p", [BinaryBody]),
     Pid = self(),
     case
         gen_smtp_client:send(
             {from_email(), [Email], BinaryBody},
-            [{relay, relay()}, {username, username()}, {password, password()}],
+            [
+                {ssl, true},
+                {relay, relay()},
+                {port, port()},
+                {username, username()},
+                {password, password()}
+            ],
             fun(Result) -> erlang:send(Pid, {sending_result, Result}) end
         )
     of
@@ -54,9 +61,17 @@ password() ->
     #{password := Password} = get_env(),
     Password.
 
+timeout() ->
+    maps:get(timeout, get_env(), 3000).
+
+port() ->
+    #{port := Port} = get_env(),
+    to_int(Port).
+
 get_env() ->
     genlib_app:env(akm, mailer, #{
-        url => "vality.dev",
+        url => "https://vality.dev",
+        port => 465,
         from_email => "example@example.com",
         relay => "smtp.gmail.com",
         username => "username",
@@ -65,11 +80,16 @@ get_env() ->
     }).
 
 wait_result() ->
+    Timeout = timeout(),
     receive
         {sending_result, {ok, _Receipt}} ->
             ok;
         {sending_result, Error} ->
             {error, Error}
-    after 3000 ->
+    after Timeout ->
         {error, {failed_to_send, sending_email_timeout}}
     end.
+
+to_int(Value) when is_integer(Value) -> Value;
+to_int(Value) when is_binary(Value) -> erlang:binary_to_integer(Value);
+to_int(Value) when is_list(Value) -> erlang:list_to_integer(Value).

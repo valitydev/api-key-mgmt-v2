@@ -20,7 +20,7 @@ gather_context_fragments(TokenContextFragment, UserID, IPAddress, WoodyCtx) ->
 judge({Acc, External}, WoodyCtx) ->
     % TODO error out early?
     {ok, RulesetID} = application:get_env(akm, bouncer_ruleset_id),
-    JudgeContext = #{fragments => External#{<<"akm">> => Acc}},
+    JudgeContext = #{fragments => External#{<<"apikeymgmt">> => Acc}},
     bouncer_client:judge(RulesetID, JudgeContext, WoodyCtx).
 
 %%

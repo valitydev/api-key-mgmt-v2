@@ -19,7 +19,8 @@
 
 -type prototype_operation() :: #{
     id => operation_id(),
-    party => maybe_undefined(entity_id())
+    party => maybe_undefined(entity_id()),
+    api_key => maybe_undefined(entity_id())
 }.
 
 -type entity_id() :: binary().
@@ -49,28 +50,45 @@ build(Prototypes, {Acc0, External}) ->
     {Acc1, External}.
 
 build(operation, Params = #{id := OperationID}, Acc) ->
-    Acc#ctx_v1_ContextFragment{
+    PartyEntity = party_entity(Params),
+    ApiKeyEntity = api_key_entity(Params),
+    ListEntities = lists:filter(fun(E) -> E =/= undefined end, [PartyEntity, ApiKeyEntity]),
+    Ctx = Acc#ctx_v1_ContextFragment{
         apikeymgmt = #ctx_v1_ContextApiKeyMgmt{
             op = #ctx_v1_ApiKeyMgmtOperation{
                 id = operation_id_to_binary(OperationID),
-                party = maybe_entity(party_id, Params),
-                api_key = maybe(api_key, Params)
+                party = PartyEntity,
+                api_key = ApiKeyEntity
             }
         }
-    }.
+    },
+    maybe_add_entities(Ctx, ListEntities).
 
 %%
 
-maybe(Name, Params) ->
-    maps:get(Name, Params, undefined).
+api_key_entity(
+    #{
+        api_key := #{
+            <<"id">> := ApiKeyId,
+            <<"metadata">> := #{<<"party.id">> := PartyId}
+        }
+    }
+) ->
+    #base_Entity{id = ApiKeyId, party = PartyId, type = <<"ApiKey">>};
+api_key_entity(_) ->
+    undefined.
 
-maybe_entity(Name, Params) ->
-    case maps:get(Name, Params, undefined) of
-        undefined ->
-            undefined;
-        Value ->
-            #base_Entity{id = Value}
-    end.
+party_entity(#{party := PartyId}) ->
+    #base_Entity{id = PartyId};
+party_entity(_) ->
+    undefined.
 
 operation_id_to_binary(V) ->
     erlang:atom_to_binary(V, utf8).
+
+maybe_add_entities(Ctx, []) ->
+    Ctx;
+maybe_add_entities(Ctx, ListEntities) ->
+    Ctx#ctx_v1_ContextFragment{
+        entities = ordsets:from_list(ListEntities)
+    }.

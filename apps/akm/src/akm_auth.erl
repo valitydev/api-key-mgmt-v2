@@ -2,6 +2,8 @@
 
 -define(APP, akm).
 
+-include_lib("bouncer_proto/include/bouncer_ctx_thrift.hrl").
+
 -export([get_subject_id/1]).
 -export([get_party_id/1]).
 -export([get_user_id/1]).
@@ -11,6 +13,8 @@
 -export([preauthorize_api_key/1]).
 -export([authorize_api_key/3]).
 -export([authorize_operation/2]).
+
+-export([make_auth_context/1]).
 
 -export_type([resolution/0]).
 -export_type([preauth_context/0]).
@@ -96,6 +100,19 @@ authorize_operation(Prototypes, Context) ->
     ),
     Fragments1 = akm_bouncer_context:build(Prototypes, Fragments),
     akm_bouncer:judge(Fragments1, WoodyContext).
+
+-spec make_auth_context(binary()) -> auth_context().
+make_auth_context(PartyId) ->
+    {
+        authorized,
+        #{
+            status => active,
+            context => #ctx_ContextFragment{type = 'v1_thrift_binary'},
+            metadata => #{
+                get_metadata_mapped_key(party_id) => PartyId
+            }
+        }
+    }.
 
 %%
 
