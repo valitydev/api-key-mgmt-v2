@@ -102,7 +102,7 @@ issue_get_key_success_test(Config) ->
             <<"id">> := ApiKeyId,
             <<"metadata">> := #{
                 <<"key">> := <<"value">>,
-                <<"party.id">> := <<"test_party">>
+                <<"dev.vality.party.id">> := <<"test_party">>
             },
             <<"name">> := <<"live-site-integration">>,
             <<"status">> := <<"active">>

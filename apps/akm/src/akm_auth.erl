@@ -16,6 +16,10 @@
 
 -export([make_auth_context/1]).
 
+-export([put_party_to_metadata/1]).
+-export([put_party_to_metadata/2]).
+-export([get_party_from_metadata/1]).
+
 -export_type([resolution/0]).
 -export_type([preauth_context/0]).
 -export_type([auth_context/0]).
@@ -130,9 +134,23 @@ parse_api_key(_) ->
     {error, unsupported_auth_scheme}.
 
 %%
+-spec put_party_to_metadata(binary()) -> map().
+put_party_to_metadata(PartyId) ->
+    put_party_to_metadata(PartyId, #{}).
+
+-spec put_party_to_metadata(binary(), map()) -> map().
+put_party_to_metadata(PartyId, MetaData) ->
+    put_metadata(get_metadata_mapped_key(party_id), PartyId, MetaData).
+
+-spec get_party_from_metadata(map()) -> binary() | undefined.
+get_party_from_metadata(MetaData) ->
+    get_metadata(get_metadata_mapped_key(party_id), MetaData).
 
 get_metadata(Key, Metadata) ->
     maps:get(Key, Metadata, undefined).
+
+put_metadata(Key, Value, Metadata) ->
+    maps:put(Key, Value, Metadata).
 
 get_metadata_mapped_key(Key) ->
     maps:get(Key, get_meta_mappings()).

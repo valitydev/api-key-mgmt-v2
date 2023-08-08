@@ -28,9 +28,7 @@ issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
     %% TODO ??? maybe wrong, review it !!!
     ContextFragment = #ctx_ContextFragment{type = 'v1_thrift_binary', content = term_to_binary(ContextV1Fragment)},
     Status = "active",
-    Metadata = Metadata0#{
-        <<"party.id">> => PartyID
-    },
+    Metadata = akm_auth:put_party_to_metadata(PartyID, Metadata0),
     Client = token_keeper_client:offline_authority(get_authority_id(), WoodyContext),
     case token_keeper_authority_offline:create(ID, ContextFragment, Metadata, Client) of
         {ok, #{token := Token}} ->
