@@ -26,7 +26,6 @@ issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
         token => #{id => ID}
     }),
     {encoded_fragment, ContextFragment} = bouncer_client:bake_context_fragment(ContextV1Fragment),
-        %% #ctx_ContextFragment{type = 'v1_thrift_binary', content = term_to_binary(ContextV1Fragment)},
     Status = "active",
     Metadata = akm_auth:put_party_to_metadata(PartyID, Metadata0),
     Client = token_keeper_client:offline_authority(get_authority_id(), WoodyContext),
