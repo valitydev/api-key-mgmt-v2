@@ -39,8 +39,8 @@ issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
             ),
             [ApiKey | _] = to_marshalled_maps(Columns, Rows),
             Resp = #{
-                <<"AccessToken">> => marshall_access_token(Token),
-                <<"ApiKey">> => ApiKey
+                <<"accessToken">> => Token,
+                <<"apiKey">> => ApiKey
             },
             {ok, Resp};
         {error, {auth_data, already_exists}} ->
@@ -67,7 +67,7 @@ list_api_keys(PartyId, Status, Limit, Offset) ->
     {ok, Columns, Rows} = epgsql_pool:query(
         main_pool,
         "SELECT id, name, status, metadata, created_at FROM apikeys where party_id = $1 AND status = $2 "
-        "ORDER BY created_at LIMIT $3 OFFSET $4",
+        "ORDER BY created_at DESC LIMIT $3 OFFSET $4",
         [PartyId, Status, Limit, Offset]
     ),
     case erlang:length(Rows) < Limit of
@@ -206,9 +206,4 @@ marshall_api_key(#{
         <<"name">> => Name,
         <<"status">> => Status,
         <<"metadata">> => decode_json(Metadata)
-    }.
-
-marshall_access_token(Token) ->
-    #{
-        <<"accessToken">> => Token
     }.

@@ -96,8 +96,8 @@ issue_get_key_success_test(Config) ->
     },
     PartyId = <<"test_party">>,
     #{
-        <<"AccessToken">> := #{<<"accessToken">> := ?ACCESS_TOKEN},
-        <<"ApiKey">> := #{
+        <<"accessToken">> := ?ACCESS_TOKEN,
+        <<"apiKey">> := #{
             <<"createdAt">> := _DateTimeRfc3339,
             <<"id">> := ApiKeyId,
             <<"metadata">> := #{
@@ -128,9 +128,9 @@ list_keys_test(Config) ->
     %% check empty list
     #{<<"results">> := []} = akm_client:list_keys(Host, Port, PartyId),
 
-    ListKeys = lists:foldl(
+    ExpectedList = lists:foldl(
         fun(Num, Acc) ->
-            #{<<"ApiKey">> := ApiKey} = akm_client:issue_key(
+            #{<<"apiKey">> := ApiKey} = akm_client:issue_key(
                 Host,
                 Port,
                 PartyId,
@@ -141,7 +141,6 @@ list_keys_test(Config) ->
         [],
         lists:seq(1, 10)
     ),
-    ExpectedList = lists:reverse(ListKeys),
 
     %% check one batch
     #{
@@ -177,7 +176,7 @@ revoke_key_w_email_error_test(Config) ->
     PartyId = <<"revoke_party">>,
 
     #{
-        <<"ApiKey">> := #{
+        <<"apiKey">> := #{
             <<"id">> := ApiKeyId
         }
     } = akm_client:issue_key(Host, Port, PartyId, #{name => <<"live-site-integration">>}),
@@ -191,7 +190,7 @@ revoke_key_test(Config) ->
     PartyId = <<"revoke_party">>,
 
     #{
-        <<"ApiKey">> := #{
+        <<"apiKey">> := #{
             <<"id">> := ApiKeyId
         }
     } = akm_client:issue_key(Host, Port, PartyId, #{name => <<"live-site-integration">>}),
