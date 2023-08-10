@@ -14,8 +14,6 @@
 -export([authorize_api_key/3]).
 -export([authorize_operation/2]).
 
--export([make_auth_context/1]).
-
 -export([put_party_to_metadata/1]).
 -export([put_party_to_metadata/2]).
 -export([get_party_from_metadata/1]).
@@ -104,19 +102,6 @@ authorize_operation(Prototypes, Context) ->
     ),
     Fragments1 = akm_bouncer_context:build(Prototypes, Fragments),
     akm_bouncer:judge(Fragments1, WoodyContext).
-
--spec make_auth_context(binary()) -> auth_context().
-make_auth_context(PartyId) ->
-    {
-        authorized,
-        #{
-            status => active,
-            context => #ctx_ContextFragment{type = 'v1_thrift_binary'},
-            metadata => #{
-                get_metadata_mapped_key(party_id) => PartyId
-            }
-        }
-    }.
 
 %%
 
