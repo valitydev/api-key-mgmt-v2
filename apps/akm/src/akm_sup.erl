@@ -9,6 +9,9 @@
 
 -define(TEMPLATE_FILE, "request_revoke.dtl").
 -define(TEMPLATE_DIR, "/opt/api-key-mgmt-v2/templates").
+-define(VAULT_TOKEN_PATH, "/var/run/secrets/kubernetes.io/serviceaccount/token").
+-define(VAULT_ROLE, <<"api-key-mgmt-v2">>).
+-define(VAULT_KEY_PG_CREDS, <<"api-key-mgmt-v2/pg_creds">>).
 
 %% API
 -export([start_link/0]).
@@ -26,6 +29,7 @@ start_link() ->
 
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init([]) ->
+    ok = maybe_set_secrets(),
     ok = dbinit(),
     {ok, _} = compile_template(),
     {LogicHandlers, LogicHandlerSpecs} = get_logic_handler_info(),
@@ -71,10 +75,10 @@ get_env_var(Name) ->
 
 dbinit() ->
     WorkDir = get_env_var("WORK_DIR"),
-    EnvPath = WorkDir ++ "/.env",
+    _ = set_database_url(),
     MigrationsPath = WorkDir ++ "/migrations",
     Cmd = "run",
-    case akm_db_migration:process(["-e", EnvPath, "-d", MigrationsPath, Cmd]) of
+    case akm_db_migration:process(["-d", MigrationsPath, Cmd]) of
         ok -> ok;
         {error, Reason} -> throw({migrations_error, Reason})
     end.
@@ -95,3 +99,76 @@ default_template_file() ->
 
 template_file() ->
     filename:join([?TEMPLATE_DIR, ?TEMPLATE_FILE]).
+
+set_database_url() ->
+    {ok, #{
+        host := PG_HOST,
+        port := PG_PORT,
+        username := PG_USER,
+        password := PG_PASSWORD,
+        database := DB_NAME
+    }} = application:get_env(akm, epsql_connection),
+    %% DATABASE_URL=postgresql://postgres:postgres@db/apikeymgmtv2
+    PG_PORT_STR = erlang:integer_to_list(PG_PORT),
+    Value =
+        "postgresql://" ++ PG_USER ++ ":" ++ PG_PASSWORD ++ "@" ++ PG_HOST ++ ":" ++ PG_PORT_STR ++ "/" ++ DB_NAME,
+    true = os:putenv("DATABASE_URL", Value).
+
+maybe_set_secrets() ->
+    case vault_client_auth() of
+        ok ->
+            Key = application:get_env(akm, vault_key_pg_creds, ?VAULT_KEY_PG_CREDS),
+            set_secrets(canal:read(Key));
+        Error ->
+            logger:error("can`t auth vault client with error: ~p", [Error]),
+            skip
+    end,
+    ok.
+
+set_secrets(
+    {
+        ok, #{
+            <<"value">> := #{
+                <<"pg_user">> := PG_USER,
+                <<"pg_password">> := PG_PASSWORD
+            }
+        }
+    }
+) ->
+    logger:info("postgres credentials successfuly read from vault"),
+    {ok, ConnOpts} = application:get_env(akm, epsql_connection),
+    application:set_env(
+        akm,
+        epsql_connection,
+        ConnOpts#{
+            username => unicode:characters_to_list(PG_USER),
+            password => unicode:characters_to_list(PG_PASSWORD)
+        }
+    ),
+    ok;
+set_secrets(Error) ->
+    logger:error("can`t read postgres credentials from vault with error: ~p", [Error]),
+    skip.
+
+vault_client_auth() ->
+    TokenPath = application:get_env(akm, vault_token_path, ?VAULT_TOKEN_PATH),
+    case read_maybe_linked_file(TokenPath) of
+        {ok, Token} ->
+            Role = application:get_env(akm, vault_role, ?VAULT_ROLE),
+            canal:auth({kubernetes, Role, Token});
+        Error ->
+            Error
+    end.
+
+read_maybe_linked_file(MaybeLinkName) ->
+    case file:read_link(MaybeLinkName) of
+        {error, enoent} = Result ->
+            Result;
+        {error, einval} ->
+            file:read_file(MaybeLinkName);
+        {ok, Filename} ->
+            file:read_file(maybe_expand_relative(MaybeLinkName, Filename))
+    end.
+
+maybe_expand_relative(BaseFilename, Filename) ->
+    filename:absname_join(filename:dirname(BaseFilename), Filename).

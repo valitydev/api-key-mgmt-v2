@@ -106,6 +106,11 @@ prepare_config(State) ->
                 password => "password",
                 username => "username"
             }}
+        ]},
+
+        {canal, [
+            {url, "http://vault:8200"},
+            {engine, kvv2}
         ]}
     ],
 
