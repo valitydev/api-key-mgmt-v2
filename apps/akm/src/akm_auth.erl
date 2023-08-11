@@ -220,4 +220,18 @@ determine_peer_test_() ->
         )
     ].
 
+-spec metadata_test() -> _.
+metadata_test() ->
+    application:set_env(
+        akm,
+        auth_config,
+        #{metadata_mappings => #{party_id => <<"dev.vality.party.id">>}}
+    ),
+    ?assertEqual(#{<<"dev.vality.party.id">> => <<"qqq">>}, put_party_to_metadata(<<"qqq">>)),
+    ?assertEqual(
+        #{<<"dev.vality.party.id">> => <<"qqq">>, 1 => 2},
+        put_party_to_metadata(<<"qqq">>, #{1 => 2})
+    ),
+    ?assertEqual(<<"qqq">>, get_party_from_metadata(#{<<"dev.vality.party.id">> => <<"qqq">>})).
+
 -endif.

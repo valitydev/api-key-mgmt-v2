@@ -102,20 +102,21 @@ template_file() ->
 
 set_database_url() ->
     {ok, #{
-        host := PG_HOST,
-        port := PG_PORT,
-        username := PG_USER,
-        password := PG_PASSWORD,
-        database := DB_NAME
+        host := PgHost,
+        port := PgPort,
+        username := PgUser,
+        password := PgPassword,
+        database := DbName
     }} = application:get_env(akm, epsql_connection),
     %% DATABASE_URL=postgresql://postgres:postgres@db/apikeymgmtv2
-    PG_PORT_STR = erlang:integer_to_list(PG_PORT),
+    PgPortStr = erlang:integer_to_list(PgPort),
     Value =
-        "postgresql://" ++ PG_USER ++ ":" ++ PG_PASSWORD ++ "@" ++ PG_HOST ++ ":" ++ PG_PORT_STR ++ "/" ++ DB_NAME,
+        "postgresql://" ++ PgUser ++ ":" ++ PgPassword ++ "@" ++ PgHost ++ ":" ++ PgPortStr ++ "/" ++ DbName,
     true = os:putenv("DATABASE_URL", Value).
 
 maybe_set_secrets() ->
-    case vault_client_auth() of
+    TokenPath = application:get_env(akm, vault_token_path, ?VAULT_TOKEN_PATH),
+    case vault_client_auth(TokenPath) of
         ok ->
             Key = application:get_env(akm, vault_key_pg_creds, ?VAULT_KEY_PG_CREDS),
             set_secrets(canal:read(Key));
@@ -129,8 +130,8 @@ set_secrets(
     {
         ok, #{
             <<"value">> := #{
-                <<"pg_user">> := PG_USER,
-                <<"pg_password">> := PG_PASSWORD
+                <<"pg_user">> := PgUser,
+                <<"pg_password">> := PgPassword
             }
         }
     }
@@ -141,8 +142,8 @@ set_secrets(
         akm,
         epsql_connection,
         ConnOpts#{
-            username => unicode:characters_to_list(PG_USER),
-            password => unicode:characters_to_list(PG_PASSWORD)
+            username => unicode:characters_to_list(PgUser),
+            password => unicode:characters_to_list(PgPassword)
         }
     ),
     ok;
@@ -150,8 +151,7 @@ set_secrets(Error) ->
     logger:error("can`t read postgres credentials from vault with error: ~p", [Error]),
     skip.
 
-vault_client_auth() ->
-    TokenPath = application:get_env(akm, vault_token_path, ?VAULT_TOKEN_PATH),
+vault_client_auth(TokenPath) ->
     case read_maybe_linked_file(TokenPath) of
         {ok, Token} ->
             Role = application:get_env(akm, vault_role, ?VAULT_ROLE),
@@ -172,3 +172,22 @@ read_maybe_linked_file(MaybeLinkName) ->
 
 maybe_expand_relative(BaseFilename, Filename) ->
     filename:absname_join(filename:dirname(BaseFilename), Filename).
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+-spec test() -> _.
+
+-spec set_secrets_error_test() -> _.
+set_secrets_error_test() ->
+    ?assertEqual(skip, set_secrets(error)).
+
+-spec read_error_test() -> _.
+read_error_test() ->
+    ?assertEqual({error, enoent}, read_maybe_linked_file("unknown_file")).
+
+-spec vault_auth_error_test() -> _.
+vault_auth_error_test() ->
+    ?assertEqual({error, enoent}, vault_client_auth("unknown_file")).
+
+-endif.

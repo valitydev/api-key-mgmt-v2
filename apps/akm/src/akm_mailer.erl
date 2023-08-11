@@ -93,3 +93,21 @@ wait_result() ->
 to_int(Value) when is_integer(Value) -> Value;
 to_int(Value) when is_binary(Value) -> erlang:binary_to_integer(Value);
 to_int(Value) when is_list(Value) -> erlang:list_to_integer(Value).
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+-spec test() -> _.
+
+-spec to_int_test() -> _.
+to_int_test() ->
+    ?assertEqual(123, to_int(123)),
+    ?assertEqual(123, to_int(<<"123">>)),
+    ?assertEqual(123, to_int("123")).
+
+-spec wait_test() -> _.
+wait_test() ->
+    erlang:send_after(timeout() + 10, self(), timeout),
+    ?assertEqual({error, {failed_to_send, sending_email_timeout}}, wait_result()).
+
+-endif.
