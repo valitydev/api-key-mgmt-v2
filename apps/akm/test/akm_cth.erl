@@ -160,6 +160,13 @@ mock_services(State) ->
         end
     ),
     meck:expect(
+        token_keeper_authority_offline,
+        revoke,
+        fun(_ID, _Client) ->
+            {ok, ok}
+        end
+    ),
+    meck:expect(
         token_keeper_authenticator,
         authenticate,
         fun(_PreAuthContext, _TokenContext, _WoodyContext) ->

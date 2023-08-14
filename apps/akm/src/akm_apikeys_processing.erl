@@ -8,12 +8,14 @@
 -export([get_api_key/1]).
 -export([list_api_keys/4]).
 -export([request_revoke/4]).
--export([revoke/2]).
+-export([revoke/3]).
 
 -type list_keys_response() :: #{
     results => [map()],
     continuationToken := binary()
 }.
+
+-type woody_context() :: woody_context:ctx().
 
 -spec issue_api_key(_, _, _) -> _.
 issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
@@ -112,19 +114,33 @@ request_revoke(Email, PartyID, ApiKeyId, Status) ->
             end
     end.
 
--spec revoke(binary(), binary()) -> ok | {error, not_found}.
-revoke(ApiKeyId, RevokeToken) ->
+-spec revoke(binary(), binary(), woody_context()) -> ok | {error, not_found}.
+revoke(ApiKeyId, RevokeToken, WoodyContext) ->
     case get_full_api_key(ApiKeyId) of
         {ok, #{
             <<"pending_status">> := PendingStatus,
             <<"revoke_token">> := RevokeToken
         }} ->
-            {ok, 1} = epgsql_pool:query(
-                main_pool,
-                "UPDATE apikeys SET status = $1, revoke_token = null WHERE id = $2",
-                [PendingStatus, ApiKeyId]
-            ),
-            ok;
+            Client = token_keeper_client:offline_authority(get_authority_id(), WoodyContext),
+            try
+                epgsql_pool:transaction(
+                    main_pool,
+                    fun(Worker) ->
+                        {ok, _} = token_keeper_authority_offline:revoke(ApiKeyId, Client),
+                        epgsql_pool:query(
+                            Worker,
+                            "UPDATE apikeys SET status = $1, revoke_token = null WHERE id = $2",
+                            [PendingStatus, ApiKeyId]
+                        )
+                    end
+                )
+            of
+                {ok, 1} -> ok
+            catch
+                Ex:Er ->
+                    logger:error("Can`t revoke ApiKey ~p with error: ~p:~p", [ApiKeyId, Ex, Er]),
+                    {error, not_found}
+            end;
         _ ->
             {error, not_found}
     end.

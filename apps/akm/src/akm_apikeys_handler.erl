@@ -154,7 +154,8 @@ prepare(
         {ok, Resolution}
     end,
     Process = fun() ->
-        case akm_apikeys_processing:revoke(ApiKeyId, Token) of
+        #{woody_context := WoodyContext} = Context,
+        case akm_apikeys_processing:revoke(ApiKeyId, Token, WoodyContext) of
             ok ->
                 akm_handler_utils:reply_ok(204);
             {error, not_found} ->
