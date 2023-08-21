@@ -14,7 +14,9 @@
 -export([authorize_api_key/3]).
 -export([authorize_operation/2]).
 
--export([make_auth_context/1]).
+-export([put_party_to_metadata/1]).
+-export([put_party_to_metadata/2]).
+-export([get_party_from_metadata/1]).
 
 -export_type([resolution/0]).
 -export_type([preauth_context/0]).
@@ -101,19 +103,6 @@ authorize_operation(Prototypes, Context) ->
     Fragments1 = akm_bouncer_context:build(Prototypes, Fragments),
     akm_bouncer:judge(Fragments1, WoodyContext).
 
--spec make_auth_context(binary()) -> auth_context().
-make_auth_context(PartyId) ->
-    {
-        authorized,
-        #{
-            status => active,
-            context => #ctx_ContextFragment{type = 'v1_thrift_binary'},
-            metadata => #{
-                get_metadata_mapped_key(party_id) => PartyId
-            }
-        }
-    }.
-
 %%
 
 get_token_keeper_fragment(?AUTHORIZED(#{context := Context})) ->
@@ -130,9 +119,23 @@ parse_api_key(_) ->
     {error, unsupported_auth_scheme}.
 
 %%
+-spec put_party_to_metadata(binary()) -> map().
+put_party_to_metadata(PartyId) ->
+    put_party_to_metadata(PartyId, #{}).
+
+-spec put_party_to_metadata(binary(), map()) -> map().
+put_party_to_metadata(PartyId, MetaData) ->
+    put_metadata(get_metadata_mapped_key(party_id), PartyId, MetaData).
+
+-spec get_party_from_metadata(map()) -> binary() | undefined.
+get_party_from_metadata(MetaData) ->
+    get_metadata(get_metadata_mapped_key(party_id), MetaData).
 
 get_metadata(Key, Metadata) ->
     maps:get(Key, Metadata, undefined).
+
+put_metadata(Key, Value, Metadata) ->
+    maps:put(Key, Value, Metadata).
 
 get_metadata_mapped_key(Key) ->
     maps:get(Key, get_meta_mappings()).
@@ -216,5 +219,19 @@ determine_peer_test_() ->
             parse_header_ip_address(<<"1.,1.,1.1,">>)
         )
     ].
+
+-spec metadata_test() -> _.
+metadata_test() ->
+    application:set_env(
+        akm,
+        auth_config,
+        #{metadata_mappings => #{party_id => <<"dev.vality.party.id">>}}
+    ),
+    ?assertEqual(#{<<"dev.vality.party.id">> => <<"qqq">>}, put_party_to_metadata(<<"qqq">>)),
+    ?assertEqual(
+        #{<<"dev.vality.party.id">> => <<"qqq">>, 1 => 2},
+        put_party_to_metadata(<<"qqq">>, #{1 => 2})
+    ),
+    ?assertEqual(<<"qqq">>, get_party_from_metadata(#{<<"dev.vality.party.id">> => <<"qqq">>})).
 
 -endif.

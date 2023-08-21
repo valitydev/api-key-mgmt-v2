@@ -76,6 +76,7 @@ set_environment(State) ->
 
 prepare_config(State) ->
     AkmAddress = "::",
+    WorkDir = get_env_var("WORK_DIR"),
     AkmPort = get_free_port(),
     PgConfig = get_pg_config(),
     SysConfig = [
@@ -83,6 +84,8 @@ prepare_config(State) ->
             {ip, AkmAddress},
             {port, AkmPort},
             {transport, thrift},
+            {bouncer_ruleset_id, <<"service/authz/api">>},
+            {vault_token_path, WorkDir ++ "/rebar.config"},
             {health_check, #{
                 disk => {erl_health, disk, ["/", 99]},
                 memory => {erl_health, cg_memory, [99]},
@@ -106,6 +109,11 @@ prepare_config(State) ->
                 password => "password",
                 username => "username"
             }}
+        ]},
+
+        {canal, [
+            {url, "http://vault:8200"},
+            {engine, kvv2}
         ]}
     ],
 
@@ -120,9 +128,29 @@ prepare_config(State) ->
 
 mock_services(State) ->
     meck:expect(
-        akm_bouncer,
+        canal,
+        auth,
+        fun(_) -> ok end
+    ),
+    meck:expect(
+        canal,
+        read,
+        fun(_) ->
+            {
+                ok,
+                #{
+                    <<"pg_creds">> => jsx:encode(#{
+                        <<"pg_user">> => get_env_var("POSTGRES_USER", "postgres"),
+                        <<"pg_password">> => get_env_var("POSTGRES_PASSWORD", "postgres")
+                    })
+                }
+            }
+        end
+    ),
+    meck:expect(
+        bouncer_client,
         judge,
-        fun(_, _) -> allowed end
+        fun(_, _, _) -> allowed end
     ),
     meck:expect(
         token_keeper_authority_offline,
@@ -132,10 +160,17 @@ mock_services(State) ->
         end
     ),
     meck:expect(
-        akm_auth,
-        authorize_api_key,
+        token_keeper_authority_offline,
+        revoke,
+        fun(_ID, _Client) ->
+            {ok, ok}
+        end
+    ),
+    meck:expect(
+        token_keeper_authenticator,
+        authenticate,
         fun(_PreAuthContext, _TokenContext, _WoodyContext) ->
-            {ok, {authorized, ?AUTH_CTX}}
+            {ok, ?AUTH_CTX}
         end
     ),
     meck:expect(
@@ -163,8 +198,8 @@ get_pg_config() ->
     #{
         host => get_env_var("POSTGRES_HOST"),
         port => list_to_integer(get_env_var("POSTGRES_PORT", "5432")),
-        username => get_env_var("POSTGRES_USER", "postgres"),
-        password => get_env_var("POSTGRES_PASSWORD", "postgres"),
+        %% username => get_env_var("POSTGRES_USER", "postgres"),
+        %% password => get_env_var("POSTGRES_PASSWORD", "postgres"),
         database => get_env_var("POSTGRES_DB", "apikeymgmtv2")
     }.
 

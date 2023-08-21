@@ -8,12 +8,14 @@
 -export([get_api_key/1]).
 -export([list_api_keys/4]).
 -export([request_revoke/4]).
--export([revoke/2]).
+-export([revoke/3]).
 
 -type list_keys_response() :: #{
     results => [map()],
     continuationToken := binary()
 }.
+
+-type woody_context() :: woody_context:ctx().
 
 -spec issue_api_key(_, _, _) -> _.
 issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
@@ -21,16 +23,13 @@ issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
     %%  REWORK ненормальный ID, переработать
     ID = akm_id:generate_snowflake_id(),
     ContextV1Fragment = bouncer_context_helpers:make_auth_fragment(#{
-        method => <<"IssueApiKey">>,
+        method => <<"ApiKeyToken">>,
         scope => [#{party => #{id => PartyID}}],
         token => #{id => ID}
     }),
-    %% TODO ??? maybe wrong, review it !!!
-    ContextFragment = #ctx_ContextFragment{type = 'v1_thrift_binary', content = term_to_binary(ContextV1Fragment)},
+    {encoded_fragment, ContextFragment} = bouncer_client:bake_context_fragment(ContextV1Fragment),
     Status = "active",
-    Metadata = Metadata0#{
-        <<"party.id">> => PartyID
-    },
+    Metadata = akm_auth:put_party_to_metadata(PartyID, Metadata0),
     Client = token_keeper_client:offline_authority(get_authority_id(), WoodyContext),
     case token_keeper_authority_offline:create(ID, ContextFragment, Metadata, Client) of
         {ok, #{token := Token}} ->
@@ -42,8 +41,8 @@ issue_api_key(PartyID, #{<<"name">> := Name} = ApiKey0, WoodyContext) ->
             ),
             [ApiKey | _] = to_marshalled_maps(Columns, Rows),
             Resp = #{
-                <<"AccessToken">> => marshall_access_token(Token),
-                <<"ApiKey">> => ApiKey
+                <<"accessToken">> => Token,
+                <<"apiKey">> => ApiKey
             },
             {ok, Resp};
         {error, {auth_data, already_exists}} ->
@@ -70,7 +69,7 @@ list_api_keys(PartyId, Status, Limit, Offset) ->
     {ok, Columns, Rows} = epgsql_pool:query(
         main_pool,
         "SELECT id, name, status, metadata, created_at FROM apikeys where party_id = $1 AND status = $2 "
-        "ORDER BY created_at LIMIT $3 OFFSET $4",
+        "ORDER BY created_at DESC LIMIT $3 OFFSET $4",
         [PartyId, Status, Limit, Offset]
     ),
     case erlang:length(Rows) < Limit of
@@ -115,19 +114,33 @@ request_revoke(Email, PartyID, ApiKeyId, Status) ->
             end
     end.
 
--spec revoke(binary(), binary()) -> ok | {error, not_found}.
-revoke(ApiKeyId, RevokeToken) ->
+-spec revoke(binary(), binary(), woody_context()) -> ok | {error, not_found}.
+revoke(ApiKeyId, RevokeToken, WoodyContext) ->
     case get_full_api_key(ApiKeyId) of
         {ok, #{
             <<"pending_status">> := PendingStatus,
             <<"revoke_token">> := RevokeToken
         }} ->
-            {ok, 1} = epgsql_pool:query(
-                main_pool,
-                "UPDATE apikeys SET status = $1, revoke_token = null WHERE id = $2",
-                [PendingStatus, ApiKeyId]
-            ),
-            ok;
+            Client = token_keeper_client:offline_authority(get_authority_id(), WoodyContext),
+            try
+                epgsql_pool:transaction(
+                    main_pool,
+                    fun(Worker) ->
+                        {ok, _} = token_keeper_authority_offline:revoke(ApiKeyId, Client),
+                        epgsql_pool:query(
+                            Worker,
+                            "UPDATE apikeys SET status = $1, revoke_token = null WHERE id = $2",
+                            [PendingStatus, ApiKeyId]
+                        )
+                    end
+                )
+            of
+                {ok, 1} -> ok
+            catch
+                Ex:Er ->
+                    logger:error("Can`t revoke ApiKey ~p with error: ~p:~p", [ApiKeyId, Ex, Er]),
+                    {error, not_found}
+            end;
         _ ->
             {error, not_found}
     end.
@@ -209,9 +222,4 @@ marshall_api_key(#{
         <<"name">> => Name,
         <<"status">> => Status,
         <<"metadata">> => decode_json(Metadata)
-    }.
-
-marshall_access_token(Token) ->
-    #{
-        <<"accessToken">> => Token
     }.

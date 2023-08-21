@@ -3,4 +3,4 @@ From: no-reply@empayre.com
 To: You
 
 
-To revoke key, go to link: {{ url }}/apikeys/v2/orgs/{{ party_id }}/revoke-api-key/{{ api_key_id }}?apiKeyRevokeToken={{ revoke_token }}
+To revoke key, go to link: {{ url }}/apikeys/v2/orgs/revoke_party/revoke-api-key/{{ api_key_id }}?apiKeyRevokeToken={{ revoke_token }}

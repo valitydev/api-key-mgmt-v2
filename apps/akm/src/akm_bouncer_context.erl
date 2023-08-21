@@ -70,10 +70,11 @@ api_key_entity(
     #{
         api_key := #{
             <<"id">> := ApiKeyId,
-            <<"metadata">> := #{<<"party.id">> := PartyId}
+            <<"metadata">> := MetaData
         }
     }
 ) ->
+    PartyId = akm_auth:get_party_from_metadata(MetaData),
     #base_Entity{id = ApiKeyId, party = PartyId, type = <<"ApiKey">>};
 api_key_entity(_) ->
     undefined.
