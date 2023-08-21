@@ -139,10 +139,10 @@ mock_services(State) ->
             {
                 ok,
                 #{
-                    <<"value">> => #{
+                    <<"pg_creds">> => jsx:encode(#{
                         <<"pg_user">> => get_env_var("POSTGRES_USER", "postgres"),
                         <<"pg_password">> => get_env_var("POSTGRES_PASSWORD", "postgres")
-                    }
+                    })
                 }
             }
         end

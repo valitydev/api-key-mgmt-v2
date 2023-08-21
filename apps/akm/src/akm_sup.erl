@@ -129,14 +129,14 @@ maybe_set_secrets() ->
 set_secrets(
     {
         ok, #{
-            <<"value">> := #{
+            <<"pg_creds">> := #{
                 <<"pg_user">> := PgUser,
                 <<"pg_password">> := PgPassword
             }
         }
     }
 ) ->
-    logger:info("postgres credentials successfuly read from vault"),
+    logger:info("postgres credentials successfuly read from vault (as json)"),
     {ok, ConnOpts} = application:get_env(akm, epsql_connection),
     application:set_env(
         akm,
@@ -147,6 +147,9 @@ set_secrets(
         }
     ),
     ok;
+set_secrets({ok, #{<<"pg_creds">> := PgCreds}}) ->
+    logger:info("postgres credentials successfuly read from vault (as string)"),
+    set_secrets({ok, #{<<"pg_creds">> => jsx:decode(PgCreds, [return_maps])}});
 set_secrets(Error) ->
     logger:error("can`t read postgres credentials from vault with error: ~p", [Error]),
     skip.
