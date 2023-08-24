@@ -116,12 +116,16 @@ set_database_url() ->
 
 maybe_set_secrets() ->
     TokenPath = application:get_env(akm, vault_token_path, ?VAULT_TOKEN_PATH),
-    case vault_client_auth(TokenPath) of
+    try vault_client_auth(TokenPath) of
         ok ->
             Key = application:get_env(akm, vault_key_pg_creds, ?VAULT_KEY_PG_CREDS),
             set_secrets(canal:read(Key));
         Error ->
             logger:error("can`t auth vault client with error: ~p", [Error]),
+            skip
+    catch
+        _:_ ->
+            logger:error("catch exception when auth vault client"),
             skip
     end,
     ok.
