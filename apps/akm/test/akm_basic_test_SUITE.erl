@@ -15,6 +15,7 @@
 -export([list_keys_test/1]).
 -export([revoke_key_w_email_error_test/1]).
 -export([revoke_key_test/1]).
+-export([list_keys_w_status_test/1]).
 
 %% also defined in ct hook module akm_cth.erl
 -define(ACCESS_TOKEN, <<"some.access.token">>).
@@ -45,7 +46,8 @@ groups() ->
             get_unknown_key_test,
             list_keys_test,
             revoke_key_w_email_error_test,
-            revoke_key_test
+            revoke_key_test,
+            list_keys_w_status_test
         ]}
     ].
 
@@ -60,12 +62,15 @@ init_per_testcase(revoke_key_w_email_error_test, C) ->
         end
     ),
     C;
-init_per_testcase(revoke_key_test, C) ->
+init_per_testcase(Name, C) when
+    Name =:= revoke_key_test;
+    Name =:= list_keys_w_status_test
+->
     meck:expect(
         gen_smtp_client,
         send,
         fun({_, _, Msg}, _, CallbackFun) ->
-            application:set_env(akm, email_msg_revoke_key_test, Msg),
+            application:set_env(akm, Name, Msg),
             P = spawn(fun() -> CallbackFun({ok, <<"success">>}) end),
             {ok, P}
         end
@@ -77,7 +82,8 @@ init_per_testcase(_Name, C) ->
 -spec end_per_testcase(test_case_name(), config()) -> _.
 end_per_testcase(Name, C) when
     Name =:= revoke_key_w_email_error_test;
-    Name =:= revoke_key_test
+    Name =:= revoke_key_test;
+    Name =:= list_keys_w_status_test
 ->
     meck:unload(gen_smtp_client),
     C;
@@ -201,7 +207,7 @@ revoke_key_test(Config) ->
     %% check success request revoke
     {204, _, _} = akm_client:request_revoke_key(Host, Port, PartyId, ApiKeyId),
 
-    RevokePath = extract_revoke_path(email_msg_revoke_key_test),
+    RevokePath = extract_revoke_path(revoke_key_test),
     RevokeWithBadApiKeyId = break_api_key_id(RevokePath, ApiKeyId),
     RevokeWithBadRevokeToken = break_revoke_token(RevokePath),
 
@@ -213,6 +219,43 @@ revoke_key_test(Config) ->
 
     %% check success revoke
     {204, _, _} = akm_client:revoke_key(Host, Port, RevokePath).
+
+-spec list_keys_w_status_test(config()) -> test_result().
+list_keys_w_status_test(Config) ->
+    Host = akm_ct_utils:lookup_config(akm_host, Config),
+    Port = akm_ct_utils:lookup_config(akm_port, Config),
+    PartyId = <<"list-keys-w-status-party">>,
+
+    #{
+        <<"apiKey">> := #{
+            <<"id">> := RevokingApiKeyId
+        } = RevokingApiKey
+    } = akm_client:issue_key(Host, Port, PartyId, #{name => <<"RevokingApiKey">>}),
+    #{
+        <<"apiKey">> := ActiveApiKey
+    } = akm_client:issue_key(Host, Port, PartyId, #{name => <<"ActiveApiKey">>}),
+
+    {204, _, _} = akm_client:request_revoke_key(Host, Port, PartyId, RevokingApiKeyId),
+    RevokePath = extract_revoke_path(list_keys_w_status_test),
+    {204, _, _} = akm_client:revoke_key(Host, Port, RevokePath),
+    RevokedApiKey = RevokingApiKey#{<<"status">> => <<"revoked">>},
+
+    %% check full list by default
+    #{
+        <<"results">> := [ActiveApiKey, RevokedApiKey]
+    } = akm_client:list_keys(Host, Port, PartyId),
+
+    %% check list of active keys
+    #{
+        <<"results">> := [ActiveApiKey]
+    } = akm_client:list_keys(Host, Port, PartyId, [{<<"status">>, <<"active">>}, {<<"limit">>, <<"1000">>}]),
+
+    %% check list of revoked keys
+    #{
+        <<"results">> := [RevokedApiKey]
+    } = akm_client:list_keys(Host, Port, PartyId, [{<<"status">>, <<"revoked">>}, {<<"limit">>, <<"1000">>}]).
+
+%% Internal functions
 
 get_list_keys(Host, Port, PartyId, Limit, #{<<"results">> := ListKeys, <<"continuationToken">> := Cont}, Acc) ->
     Params = [{<<"limit">>, Limit}, {<<"continuationToken">>, Cont}],
