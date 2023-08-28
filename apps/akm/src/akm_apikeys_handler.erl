@@ -99,7 +99,7 @@ prepare(
     #{
         'partyId' := PartyID,
         'limit' := Limit,
-        'status' := Status0,
+        'status' := Status,
         continuationToken := ContinuationToken0
     },
     Context,
@@ -110,7 +110,6 @@ prepare(
         Resolution = akm_auth:authorize_operation(Prototypes, Context),
         {ok, Resolution}
     end,
-    Status = genlib:define(Status0, <<"active">>),
     ContinuationToken = erlang:binary_to_integer(genlib:define(ContinuationToken0, <<"0">>)),
     Process = fun() ->
         {ok, Response} = akm_apikeys_processing:list_api_keys(PartyID, Status, Limit, ContinuationToken),

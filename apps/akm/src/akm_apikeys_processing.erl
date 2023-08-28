@@ -66,12 +66,7 @@ get_api_key(ApiKeyId) ->
 
 -spec list_api_keys(binary(), binary(), non_neg_integer(), non_neg_integer()) -> {ok, list_keys_response()}.
 list_api_keys(PartyId, Status, Limit, Offset) ->
-    {ok, Columns, Rows} = epgsql_pool:query(
-        main_pool,
-        "SELECT id, name, status, metadata, created_at FROM apikeys where party_id = $1 AND status = $2 "
-        "ORDER BY created_at DESC LIMIT $3 OFFSET $4",
-        [PartyId, Status, Limit, Offset]
-    ),
+    {ok, Columns, Rows} = get_keys(PartyId, Status, Limit, Offset),
     case erlang:length(Rows) < Limit of
         true ->
             % last piece of data
@@ -163,6 +158,21 @@ get_full_api_key(ApiKeyId) ->
             [ApiKey | _] = to_maps(Columns, Rows),
             {ok, ApiKey}
     end.
+
+get_keys(PartyId, undefined, Limit, Offset) ->
+    epgsql_pool:query(
+        main_pool,
+        "SELECT id, name, status, metadata, created_at FROM apikeys where party_id = $1 "
+        "ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+        [PartyId, Limit, Offset]
+    );
+get_keys(PartyId, Status, Limit, Offset) ->
+    epgsql_pool:query(
+        main_pool,
+        "SELECT id, name, status, metadata, created_at FROM apikeys where party_id = $1 AND status = $2 "
+        "ORDER BY created_at DESC LIMIT $3 OFFSET $4",
+        [PartyId, Status, Limit, Offset]
+    ).
 
 %% Encode/Decode
 
