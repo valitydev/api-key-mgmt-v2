@@ -5,6 +5,7 @@
 -include_lib("bouncer_proto/include/bouncer_ctx_thrift.hrl").
 -include_lib("epgsql/include/epgsql.hrl").
 
+-define(TEMPLATE_DIR, "/opt/api-key-mgmt-v2/templates").
 -define(TEMPLATE_FILE, "request_revoke.dtl").
 
 -export([send_revoke_mail/4]).
@@ -12,7 +13,7 @@
 -spec send_revoke_mail(string(), binary(), binary(), binary()) ->
     ok | {error, {failed_to_send, term()}}.
 send_revoke_mail(Email, PartyID, ApiKeyID, Token) ->
-    Mod = ?RENDER_MODULE,
+    {ok, Mod} = compile_template(),
     {ok, Body} = Mod:render([
         {url, url()},
         {party_id, PartyID},
@@ -20,7 +21,6 @@ send_revoke_mail(Email, PartyID, ApiKeyID, Token) ->
         {revoke_token, Token}
     ]),
     BinaryBody = unicode:characters_to_binary(Body),
-    logger:info("Try send email with body: ~p", [BinaryBody]),
     Pid = self(),
     case
         gen_smtp_client:send(
@@ -93,6 +93,22 @@ wait_result() ->
 to_int(Value) when is_integer(Value) -> Value;
 to_int(Value) when is_binary(Value) -> erlang:binary_to_integer(Value);
 to_int(Value) when is_list(Value) -> erlang:list_to_integer(Value).
+
+compile_template() ->
+    TemplateFile = template_file(),
+    File =
+        case filelib:is_file(TemplateFile) of
+            true -> TemplateFile;
+            false -> default_template_file()
+        end,
+    erlydtl:compile({file, File}, ?RENDER_MODULE).
+
+default_template_file() ->
+    AkmPrivDir = code:priv_dir(akm),
+    filename:join([AkmPrivDir, "mails", ?TEMPLATE_FILE]).
+
+template_file() ->
+    filename:join([?TEMPLATE_DIR, ?TEMPLATE_FILE]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
