@@ -7,8 +7,6 @@
 
 -include("akm.hrl").
 
--define(TEMPLATE_FILE, "request_revoke.dtl").
--define(TEMPLATE_DIR, "/opt/api-key-mgmt-v2/templates").
 -define(VAULT_TOKEN_PATH, "/var/run/secrets/kubernetes.io/serviceaccount/token").
 -define(VAULT_ROLE, <<"api-key-mgmt-v2">>).
 -define(VAULT_KEY_PG_CREDS, <<"api-key-mgmt-v2/pg_creds">>).
@@ -31,7 +29,6 @@ start_link() ->
 init([]) ->
     ok = maybe_set_secrets(),
     ok = dbinit(),
-    {ok, _} = compile_template(),
     {LogicHandlers, LogicHandlerSpecs} = get_logic_handler_info(),
     HealthCheck = enable_health_logging(genlib_app:env(akm, health_check, #{})),
     AdditionalRoutes = [{'_', [erl_health_handle:get_route(HealthCheck), get_prometheus_route()]}],
@@ -82,23 +79,6 @@ dbinit() ->
         ok -> ok;
         {error, Reason} -> throw({migrations_error, Reason})
     end.
-
-compile_template() ->
-    TemplateFile = template_file(),
-    File =
-        case filelib:is_file(TemplateFile) of
-            true -> TemplateFile;
-            false -> default_template_file()
-        end,
-    AkmEbinDir = code:lib_dir(akm, ebin),
-    erlydtl:compile({file, File}, ?RENDER_MODULE, [{out_dir, AkmEbinDir}]).
-
-default_template_file() ->
-    AkmPrivDir = code:priv_dir(akm),
-    filename:join([AkmPrivDir, "mails", ?TEMPLATE_FILE]).
-
-template_file() ->
-    filename:join([?TEMPLATE_DIR, ?TEMPLATE_FILE]).
 
 set_database_url() ->
     {ok, #{
