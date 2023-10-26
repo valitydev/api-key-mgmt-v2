@@ -29,7 +29,10 @@
         woody_user_identity,
         erlydtl,
         gen_smtp,
-        canal
+        canal,
+        opentelemetry_api,
+        opentelemetry_exporter,
+        opentelemetry
     ]},
     {env, []}
 ]}.
