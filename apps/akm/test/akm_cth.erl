@@ -2,6 +2,8 @@
 
 -include_lib("common_test/include/ct.hrl").
 -include_lib("bouncer_proto/include/bouncer_ctx_thrift.hrl").
+-include_lib("bouncer_proto/include/bouncer_decision_thrift.hrl").
+-include_lib("token_keeper_proto/include/tk_token_keeper_thrift.hrl").
 
 -type config() :: [{atom(), term()}].
 -type test_case_name() :: atom().
@@ -19,16 +21,16 @@
 ]).
 
 -define(ACCESS_TOKEN, <<"some.access.token">>).
--define(AUTH_CTX, #{
-    id => <<"auth_data_id">>,
-    token => ?ACCESS_TOKEN,
-    status => active,
-    context => #ctx_ContextFragment{type = 'v1_thrift_binary'},
-    metadata => #{
+-define(AUTH_CTX, #token_keeper_AuthData{
+    id = <<"auth_data_id">>,
+    token = ?ACCESS_TOKEN,
+    status = active,
+    context = #ctx_ContextFragment{type = 'v1_thrift_binary'},
+    metadata = #{
         <<"dev.vality.party.id">> => <<"some_party">>,
         <<"dev.vality.user.email">> => <<"box@mail.ru">>
     },
-    authority => <<"authority_id">>
+    authority = <<"authority_id">>
 }).
 
 -spec init(_, _) -> _.
@@ -86,6 +88,7 @@ prepare_config(State) ->
             {transport, thrift},
             {bouncer_ruleset_id, <<"service/authz/api">>},
             {vault_token_path, WorkDir ++ "/rebar.config"},
+            {authority_id, <<"authority_id">>},
             {health_check, #{
                 disk => {erl_health, disk, ["/", 99]},
                 memory => {erl_health, cg_memory, [99]},
@@ -111,9 +114,33 @@ prepare_config(State) ->
             }}
         ]},
 
+        {bouncer_client, [
+            {service_clients, #{
+                bouncer => #{url => <<"http://bouncer/v1/arbiter">>},
+                org_management => #{url => <<"http://org-management/org/v1/auth-context">>}
+            }}
+        ]},
+
+        {token_keeper_client, [
+            {service_clients, #{
+                authenticator => #{url => <<"http://authenticator/v2/authenticator">>},
+                authorities => #{
+                    offline => #{
+                        <<"authority_id">> => #{
+                            url => <<"http://authenticator/v2/authority/com.empayre.apikey">>
+                        }
+                    }
+                }
+            }}
+        ]},
+
         {canal, [
             {url, "http://vault:8200"},
             {engine, kvv2}
+        ]},
+
+        {opentelemetry, [
+            {span_processor, simple}
         ]}
     ],
 
@@ -147,36 +174,22 @@ mock_services(State) ->
             }
         end
     ),
+
     meck:expect(
-        bouncer_client,
-        judge,
-        fun(_, _, _) -> allowed end
-    ),
-    meck:expect(
-        token_keeper_authority_offline,
-        create,
-        fun(_ID, _ContextFragment, _Metadata, _Client) ->
-            {ok, #{token => ?ACCESS_TOKEN}}
+        woody_client,
+        call,
+        fun
+            (_Request = {{_, 'Arbiter'}, 'Judge', _}, _Options, _Context) ->
+                {ok, #decision_Judgement{resolution = {allowed, #decision_ResolutionAllowed{}}}};
+            (_Request = {{_, 'TokenAuthenticator'}, 'Authenticate', _}, _Options, _Context) ->
+                {ok, ?AUTH_CTX};
+            (_Request = {{_, 'TokenAuthority'}, 'Create', _}, _Options, _Context) ->
+                {ok, ?AUTH_CTX};
+            (_Request = {{_, 'TokenAuthority'}, 'Revoke', _}, _Options, _Context) ->
+                {ok, ok};
+            (Request, Options, Context) ->
+                meck:passthrough([Request, Options, Context])
         end
-    ),
-    meck:expect(
-        token_keeper_authority_offline,
-        revoke,
-        fun(_ID, _Client) ->
-            {ok, ok}
-        end
-    ),
-    meck:expect(
-        token_keeper_authenticator,
-        authenticate,
-        fun(_PreAuthContext, _TokenContext, _WoodyContext) ->
-            {ok, ?AUTH_CTX}
-        end
-    ),
-    meck:expect(
-        token_keeper_client,
-        offline_authority,
-        fun(_, _) -> #{} end
     ),
     State.
 

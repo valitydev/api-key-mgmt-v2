@@ -1,5 +1,8 @@
 -module(akm_client).
 
+-include_lib("opentelemetry_api/include/otel_tracer.hrl").
+-include_lib("opentelemetry_api/include/opentelemetry.hrl").
+
 %% API
 -export([
     issue_key/4,
@@ -12,30 +15,18 @@
 
 -spec issue_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary(), map()) -> any().
 issue_key(Host, Port, PartyId, ApiKey) ->
-    Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys">>,
-    Body = jsx:encode(ApiKey),
-    Headers = [
-        {<<"X-Request-ID">>, <<"issue_key">>},
-        {<<"content-type">>, <<"application/json; charset=utf-8">>},
-        {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>}
-    ],
-    ConnPid = connect(Host, Port),
-    Answer = post(ConnPid, Path, Headers, Body),
-    disconnect(ConnPid),
-    parse(Answer).
+    perform_request(Host, Port, <<"issue_key">>, fun(ConnPid, Headers) ->
+        Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys">>,
+        Body = jsx:encode(ApiKey),
+        post(ConnPid, Path, Headers, Body)
+    end).
 
 -spec get_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary(), binary()) -> any().
 get_key(Host, Port, PartyId, ApiKeyId) ->
-    Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys/", ApiKeyId/binary>>,
-    Headers = [
-        {<<"X-Request-ID">>, <<"get_key">>},
-        {<<"content-type">>, <<"application/json; charset=utf-8">>},
-        {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>}
-    ],
-    ConnPid = connect(Host, Port),
-    Answer = get(ConnPid, Path, Headers),
-    disconnect(ConnPid),
-    parse(Answer).
+    perform_request(Host, Port, <<"get_key">>, fun(ConnPid, Headers) ->
+        Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys/", ApiKeyId/binary>>,
+        get(ConnPid, Path, Headers)
+    end).
 
 -spec list_keys(inet:hostname() | inet:ip_address(), inet:port_number(), binary()) -> any().
 list_keys(Host, Port, PartyId) ->
@@ -43,45 +34,44 @@ list_keys(Host, Port, PartyId) ->
 
 -spec list_keys(inet:hostname() | inet:ip_address(), inet:port_number(), binary(), list()) -> any().
 list_keys(Host, Port, PartyId, QsList) ->
-    Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys">>,
-    Headers = [
-        {<<"X-Request-ID">>, <<"list_keys">>},
-        {<<"content-type">>, <<"application/json; charset=utf-8">>},
-        {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>}
-    ],
-    PathWithQuery = maybe_query(Path, QsList),
-    ConnPid = connect(Host, Port),
-    Answer = get(ConnPid, PathWithQuery, Headers),
-    disconnect(ConnPid),
-    parse(Answer).
+    perform_request(Host, Port, <<"list_keys">>, fun(ConnPid, Headers) ->
+        Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys">>,
+        PathWithQuery = maybe_query(Path, QsList),
+        get(ConnPid, PathWithQuery, Headers)
+    end).
 
 -spec request_revoke_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary(), binary()) -> any().
 request_revoke_key(Host, Port, PartyId, ApiKeyId) ->
-    Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys/", ApiKeyId/binary, "/status">>,
-    Headers = [
-        {<<"X-Request-ID">>, <<"request_revoke">>},
-        {<<"content-type">>, <<"application/json; charset=utf-8">>},
-        {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>}
-    ],
-    Body = jsx:encode(#{<<"status">> => <<"revoked">>}),
-    ConnPid = connect(Host, Port),
-    Answer = put(ConnPid, Path, Headers, Body),
-    disconnect(ConnPid),
-    parse(Answer).
+    perform_request(Host, Port, <<"request_revoke">>, fun(ConnPid, Headers) ->
+        Path = <<"/apikeys/v2/orgs/", PartyId/binary, "/api-keys/", ApiKeyId/binary, "/status">>,
+        Body = jsx:encode(#{<<"status">> => <<"revoked">>}),
+        put(ConnPid, Path, Headers, Body)
+    end).
 
 -spec revoke_key(inet:hostname() | inet:ip_address(), inet:port_number(), binary()) -> any().
 revoke_key(Host, Port, PathWithQuery) ->
-    Headers = [
-        {<<"X-Request-ID">>, <<"request_revoke">>},
-        {<<"content-type">>, <<"application/json; charset=utf-8">>},
-        {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>}
-    ],
-    ConnPid = connect(Host, Port),
-    Answer = get(ConnPid, PathWithQuery, Headers),
-    disconnect(ConnPid),
-    parse(Answer).
+    perform_request(Host, Port, <<"revoke_key">>, fun(ConnPid, Headers) ->
+        get(ConnPid, PathWithQuery, Headers)
+    end).
 
 % Internal functions
+
+perform_request(Host, Port, RequestID, F) ->
+    SpanName = iolist_to_binary(["client ", RequestID]),
+    ?with_span(SpanName, #{kind => ?SPAN_KIND_CLIENT}, fun(_SpanCtx) ->
+        Headers = prepare_headers(RequestID),
+        ConnPid = connect(Host, Port),
+        Answer = F(ConnPid, Headers),
+        disconnect(ConnPid),
+        parse(Answer)
+    end).
+
+prepare_headers(RequestID) ->
+    otel_propagator_text_map:inject([
+        {<<"X-Request-ID">>, RequestID},
+        {<<"content-type">>, <<"application/json; charset=utf-8">>},
+        {<<"Authorization">>, <<"Bearer sffsdfsfsdfsdfs">>}
+    ]).
 
 -spec connect(inet:hostname() | inet:ip_address(), inet:port_number()) -> any().
 connect(Host, Port) ->
