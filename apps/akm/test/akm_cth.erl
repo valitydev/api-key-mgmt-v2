@@ -1,6 +1,5 @@
 -module(akm_cth).
 
--include_lib("common_test/include/ct.hrl").
 -include_lib("bouncer_proto/include/bouncer_ctx_thrift.hrl").
 -include_lib("bouncer_proto/include/bouncer_decision_thrift.hrl").
 -include_lib("token_keeper_proto/include/tk_token_keeper_thrift.hrl").
@@ -179,13 +178,13 @@ mock_services(State) ->
         woody_client,
         call,
         fun
-            (_Request = {{_, 'Arbiter'}, 'Judge', _}, _Options, _Context) ->
+            ({{_, 'Arbiter'}, 'Judge', _} = _Request, _Options, _Context) ->
                 {ok, #decision_Judgement{resolution = {allowed, #decision_ResolutionAllowed{}}}};
-            (_Request = {{_, 'TokenAuthenticator'}, 'Authenticate', _}, _Options, _Context) ->
+            ({{_, 'TokenAuthenticator'}, 'Authenticate', _} = _Request, _Options, _Context) ->
                 {ok, ?AUTH_CTX};
-            (_Request = {{_, 'TokenAuthority'}, 'Create', _}, _Options, _Context) ->
+            ({{_, 'TokenAuthority'}, 'Create', _} = _Request, _Options, _Context) ->
                 {ok, ?AUTH_CTX};
-            (_Request = {{_, 'TokenAuthority'}, 'Revoke', _}, _Options, _Context) ->
+            ({{_, 'TokenAuthority'}, 'Revoke', _} = _Request, _Options, _Context) ->
                 {ok, ok};
             (Request, Options, Context) ->
                 meck:passthrough([Request, Options, Context])

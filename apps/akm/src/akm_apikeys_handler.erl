@@ -58,7 +58,7 @@
 
 %% Providers
 -spec prepare(operation_id(), request_data(), handler_context(), handler_opts()) -> {ok, request_state()}.
-prepare(OperationID = 'IssueApiKey', #{'partyId' := PartyID, 'ApiKeyIssue' := ApiKey}, Context, _Opts) ->
+prepare('IssueApiKey' = OperationID, #{'partyId' := PartyID, 'ApiKeyIssue' := ApiKey}, Context, _Opts) ->
     Authorize = fun() ->
         Prototypes = [{operation, #{id => OperationID, party => PartyID}}],
         Resolution = akm_auth:authorize_operation(Prototypes, Context),
@@ -77,7 +77,7 @@ prepare(OperationID = 'IssueApiKey', #{'partyId' := PartyID, 'ApiKeyIssue' := Ap
         end
     end,
     {ok, #{authorize => Authorize, process => Process}};
-prepare(OperationID = 'GetApiKey', #{'partyId' := PartyID, 'apiKeyId' := ApiKeyId}, Context, _Opts) ->
+prepare('GetApiKey' = OperationID, #{'partyId' := PartyID, 'apiKeyId' := ApiKeyId}, Context, _Opts) ->
     Result = akm_apikeys_processing:get_api_key(ApiKeyId),
     Authorize = fun() ->
         ApiKey = extract_api_key(Result),
@@ -95,7 +95,7 @@ prepare(OperationID = 'GetApiKey', #{'partyId' := PartyID, 'apiKeyId' := ApiKeyI
     end,
     {ok, #{authorize => Authorize, process => Process}};
 prepare(
-    OperationID = 'ListApiKeys',
+    'ListApiKeys' = OperationID,
     #{
         'partyId' := PartyID,
         'limit' := Limit,
@@ -116,7 +116,7 @@ prepare(
         akm_handler_utils:reply_ok(200, Response)
     end,
     {ok, #{authorize => Authorize, process => Process}};
-prepare(OperationID = 'RequestRevokeApiKey', Params, Context, _Opts) ->
+prepare('RequestRevokeApiKey' = OperationID, Params, Context, _Opts) ->
     #{
         'partyId' := PartyID,
         'apiKeyId' := ApiKeyId,
@@ -140,7 +140,7 @@ prepare(OperationID = 'RequestRevokeApiKey', Params, Context, _Opts) ->
     end,
     {ok, #{authorize => Authorize, process => Process}};
 prepare(
-    OperationID = 'RevokeApiKey',
+    'RevokeApiKey' = OperationID,
     #{'partyId' := PartyID, 'apiKeyId' := ApiKeyId, 'apiKeyRevokeToken' := Token},
     Context,
     _Opts
@@ -163,7 +163,7 @@ prepare(
     end,
     {ok, #{authorize => Authorize, process => Process}}.
 
-extract_api_key({ok, Apikey}) ->
-    Apikey;
+extract_api_key({ok, ApiKey}) ->
+    ApiKey;
 extract_api_key(_) ->
     undefined.
