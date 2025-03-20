@@ -52,7 +52,7 @@ get_logic_handler_info() ->
 -spec enable_health_logging(erl_health:check()) -> erl_health:check().
 enable_health_logging(Check) ->
     EvHandler = {erl_health_event_handler, []},
-    maps:map(fun(_, V = {_, _, _}) -> #{runner => V, event_handler => EvHandler} end, Check).
+    maps:map(fun(_, {_, _, _} = V) -> #{runner => V, event_handler => EvHandler} end, Check).
 
 start_epgsql_pooler() ->
     Params = genlib_app:env(akm, epsql_connection, #{}),

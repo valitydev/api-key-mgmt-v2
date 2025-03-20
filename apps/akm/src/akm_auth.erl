@@ -124,12 +124,12 @@ put_party_to_metadata(PartyId) ->
     put_party_to_metadata(PartyId, #{}).
 
 -spec put_party_to_metadata(binary(), map()) -> map().
-put_party_to_metadata(PartyId, MetaData) ->
-    put_metadata(get_metadata_mapped_key(party_id), PartyId, MetaData).
+put_party_to_metadata(PartyId, Metadata) ->
+    put_metadata(get_metadata_mapped_key(party_id), PartyId, Metadata).
 
 -spec get_party_from_metadata(map()) -> binary() | undefined.
-get_party_from_metadata(MetaData) ->
-    get_metadata(get_metadata_mapped_key(party_id), MetaData).
+get_party_from_metadata(Metadata) ->
+    get_metadata(get_metadata_mapped_key(party_id), Metadata).
 
 get_metadata(Key, Metadata) ->
     maps:get(Key, Metadata, undefined).

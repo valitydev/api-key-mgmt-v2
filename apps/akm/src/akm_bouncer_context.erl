@@ -49,7 +49,7 @@ build(Prototypes, {Acc0, External}) ->
     Acc1 = lists:foldl(fun({T, Params}, Acc) -> build(T, Params, Acc) end, Acc0, Prototypes),
     {Acc1, External}.
 
-build(operation, Params = #{id := OperationID}, Acc) ->
+build(operation, #{id := OperationID} = Params, Acc) ->
     PartyEntity = party_entity(Params),
     ApiKeyEntity = api_key_entity(Params),
     ListEntities = lists:filter(fun(E) -> E =/= undefined end, [PartyEntity, ApiKeyEntity]),

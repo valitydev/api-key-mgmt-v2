@@ -87,7 +87,7 @@ mk_operation_id_getter(#{env := Env}) ->
 %% cowboy_router:execute/2.
 %% NOTE: Be careful when upgrade cowboy in this project
 %% because cowboy_router:execute/2 call can change.
-get_operation_id(Req = #{host := _Host, path := _Path}, Env) ->
+get_operation_id(#{host := _Host, path := _Path} = Req, Env) ->
     case cowboy_router:execute(Req, Env) of
         {ok, _, #{handler_opts := {_Operations, _LogicHandler, _SwaggerHandlerOpts} = HandlerOpts}} ->
             case swag_server_apikeys_utils:get_operation_id(Req, HandlerOpts) of
